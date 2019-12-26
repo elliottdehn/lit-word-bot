@@ -1,0 +1,17 @@
+Wow /u/%u, I think %w is a pretty lit word!
+
+%w means:
+
+%definitions
+
+%examples
+
+%translations
+
+%etym
+
+%suggestions | %source | %charity | %my_origin | %hire
+
+I am a bot, made with ❤️
+
+If a mod replies with "stop" I will avoid this subreddit.
