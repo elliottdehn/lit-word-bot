@@ -9,6 +9,7 @@ verify_ssl = true
 praw = "*"
 nltk = "*"
 requests = "*"
+pyrsistent = "*"
 
 [requires]
 python_version = "3.8"

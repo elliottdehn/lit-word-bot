@@ -1,4 +1,6 @@
-Wow /u/%u, I think %w is a pretty lit word!
+🤖
+
+Wow /u/%u, I think "%w" is a pretty lit word!
 
 %w means:
 
@@ -6,12 +8,8 @@ Wow /u/%u, I think %w is a pretty lit word!
 
 %examples
 
-%translations
+%footer
 
-%etym
+I am made with ❤️
 
-%suggestions | %source | %charity | %my_origin | %hire
-
-I am a bot, made with ❤️
-
-If a mod replies with "stop" I will avoid this subreddit.
+If a mod replies with "stop", I will avoid this subreddit!

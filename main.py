@@ -177,10 +177,6 @@ dictionary_set = set()
 with open('dictionary/words_dictionary.json', 'r') as json_file:
     dictionary_set = set(json.load(json_file))
 
-#response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" + "disempower" + "?key=" + secrets.webster_dict_key)
-#webster_def = response.json()
-#print(json.dumps(webster_def, indent=2))
-
 lovecraft_set = real_word_set_from_word_set(word_set_from_dir(
     "./lovecraft", "lovecraft/", "windows-1252"), dictionary_set)
 poe_set = real_word_set_from_word_set(
@@ -188,13 +184,17 @@ poe_set = real_word_set_from_word_set(
 shake_set = real_word_set_from_word_set(word_set_from_dir(
     "./shakespeare", "shakespeare/", "windows-1252"), dictionary_set)
 
+corpus_word_set = lovecraft_set.union(poe_set).union(shake_set)
+
 offensive_set = word_set_from_dir_no_clean(
     "./offensive", "offensive/", "windows-1252")
-corpus_word_set = lovecraft_set.union(poe_set).union(shake_set)
 
 stemmer = PorterStemmer()
 corpus_word_set_stems = set([stemmer.stem(w)
                              for w in corpus_word_set]) - offensive_set
+
+#filter for words in the dictionary
+#note our local dictionary is only approximate
 valid_stem_set = set([stemmer.stem(w) for w in dictionary_set])
 
 print("Corpus Not Stemmed Unique Count: " + str(len(corpus_word_set)))
