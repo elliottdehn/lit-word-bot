@@ -1,4 +1,4 @@
-🤖
+🤖💬
 
 Wow /u/%u, I think "%w" is a pretty lit word!
 
@@ -10,6 +10,6 @@ Wow /u/%u, I think "%w" is a pretty lit word!
 
 %footer
 
-I am made with ❤️
-
 If a mod replies with "stop", I will avoid this subreddit!
+
+Made with ❤️
