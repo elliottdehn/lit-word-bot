@@ -136,11 +136,57 @@ def filter_posts(posts, post_score, hours):
 def filter_comments(comments, comment_score, hours):
     return filter_submissions(comments, comment_score, hours)
 
+# What the comment consumption algorithm boils down to:
+# Comment -> Map(word -> Comment)
+# Highest scoring comment wins in a word-map collision
+# Algo:
+# - turn each comment into a (Comment, {words}) tuple
+# - map each (Comment, {words}) tuple into N (Comment, word) pairs
+# - collect the pairs into (word -> {Comments}) pairs
+# - select the highest scoring comment for each, resulting in (word -> Comment) mapping
 
-def hot_relevant_sub_bag(sub, lim, post_score, post_hours, comm_score, comm_hours):
+# - turn each comment into a (Comment, {words}) tuple
+
+
+def associate_words(comment, text):
+    return (comment, set(clean(text).split()))
+
+# - map each (Comment, {words}) tuple into N (Comment, word) pairs
+
+
+def split(left, elm_set):
+    return [(left, elm) for elm in elm_set]
+
+# - collect the pairs into (word -> {Comments}) pairs
+
+
+def nuples_to_map(nuple_set, key_idx):
+    nuple_map = {nuple[key_idx]: set() for nuple in nuple_set}
+    for key in nuple_map.keys():
+        nuple_map[key] = set(filterfalse(lambda elm: elm[key_idx] != key, nuple_set))
+    return nuple_map
+
+# - select the highest scoring comment for each, resulting in (word -> Comment) mapping
+
+
+def map_to_max(m, maxed_key):
+    return {k: max(m[k], key=maxed_key) for k in m.keys()}
+
+
+def map_word_to_comment(comment_bag_pairs):
+    comment_word_pairs = list()
+    for pair in comment_bag_pairs:
+        comment_word_pairs.extend(split(pair[0], pair[1]))
+    word_to_comments_map = nuples_to_map(comment_word_pairs, 1)
+    word_to_comment = map_to_max(
+        word_to_comments_map, lambda comment_word: comment_word[0].score)
+    return word_to_comment
+
+
+def hot_sub_comment_bags(sub, lim, post_score, post_hours, comm_score, comm_hours):
     hot_posts = sub.hot(limit=lim)
     hot_posts = filter_posts(hot_posts, post_score, post_hours)
-    bag = ""
+    bag = list()
     for p in hot_posts:
         p.comments.replace_more()
         hot_comments = list(filter_comments(
@@ -148,24 +194,30 @@ def hot_relevant_sub_bag(sub, lim, post_score, post_hours, comm_score, comm_hour
         print("Comments found: " + str(len(hot_comments)))
         for c in hot_comments:
             print("Comment executed.")
-            clean_comment = clean(c.body)
-            bag += ' ' + clean_comment
-    return set(clean(bag.strip()).split())
+            bag.append(associate_words(c, c.body))
+    return bag
+
+# Set((Comment, {words})) -> Map((word -> Comment))
+# Highest scoring comment wins in a collision
+# Algo:
+# - map each (Comment, {words}) pair to N (Comment, word) pairs, as a set
+# - collect the pairs into (word, {Comments}) pairs
+# - select highscore comment for each word, resulting in (word -> Best_Comment) mapping
 
 
-def hot_relevant_reddit_bag(reddit, lim, post_score, post_hours, comm_score, comm_hours):
+def hot_all_word_map(reddit, lim, post_score, post_hours, comm_score, comm_hours):
     # assume you have a Subreddit instance bound to variable `subreddit`
     hot_posts = reddit.subreddit("all").hot(limit=lim)
     hot_posts = filter_posts(hot_posts, post_score, post_hours)
 
     hot_subs = {p.subreddit.display_name: p.subreddit for p in hot_posts}
-    bag = set()
-    for sub in hot_subs.keys():
-        print("Working on: " + sub)
-        bag = bag.union(hot_relevant_sub_bag(reddit.subreddit(sub), lim,
-                                             post_score, post_hours, comm_score, comm_hours))
-
-    return bag
+    bags = list()
+    for sub_name in hot_subs.keys():
+        sub = reddit.subreddit(sub_name)
+        print("Working on: " + sub_name)
+        bags.extend(hot_sub_comment_bags(sub, lim,
+                                         post_score, post_hours, comm_score, comm_hours))
+    return map_word_to_comment(bags)
 
 
 def word_set_from_dir(directory, folder, encoding):
@@ -191,11 +243,6 @@ def real_word_set_from_word_set(word_set, real_words):
     return word_set - fake_words
 
 
-def prefix_remainder(word, prefix):
-    zipChain = zip(chain(word), chain(prefix))
-    return len(word) - len()
-
-
 def partition(items, predicate=bool):
     a, b = tee((predicate(item), item) for item in items)
     return ((item for pred, item in a if not pred),
@@ -209,7 +256,8 @@ def stem_set(word_set):
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)')
-reddit_set = hot_relevant_reddit_bag(reddit_ro, 100, 30, 4, 8, 2)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 30, 4, 8, 2)
+reddit_set = set(reddit_word_to_comment.keys())
 
 stemmer = PorterStemmer()
 reddit_set_stem_map = {stemmer.stem(word): word for word in reddit_set}
@@ -278,7 +326,7 @@ for w in lit_words_20:
                                 real_word + "?key=" + secrets.webster_thes_key)
         webster_def = response.json()
         if (len(webster_def) == 0 or type(webster_def[0]) is str):
-            print("Thesaurus fallback failure...")
+            print("Thesaurus fallback missed...\n\n\n")
             continue
 
     real_freq = 0
@@ -330,6 +378,7 @@ for w in lit_words_20:
     print(real_word + " || stem-reduced rarity score: " + str(rarity_score))
     print("\n\n\n")
 
+#This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])
 for final_tup in final_results:
-    print(final_tup)
+    print(str(final_tup) + " || Associated comment ID: " + str(reddit_word_to_comment[final_tup[0]]))
