@@ -1,5 +1,6 @@
 from datetime import *
 from itertools import *
+from more_itertools import flatten
 # https://praw.readthedocs.io/en/latest/getting_started/quick_start.html
 import praw
 from nltk.stem import *
@@ -104,7 +105,7 @@ def clean(body):
     urls = r"((http|ftp|https):\/\/)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)"
     spacify = r"([^a-zA-z]|[\\]|[\^])"
     despaced = r"[\s]+"
-    no_dummies = r"\b.{1,2}\b"
+    no_dummies = r"\b.{1,3}\b"
 
     replaced = re.sub(urls, ' ', body)
     replaced = multirepl_list("-|[|]".split('|'), " ", replaced)
@@ -117,26 +118,54 @@ def clean(body):
     return replaced.strip().lower()
 
 
-def hot_relevant_reddit_bag(reddit, sub, lim, comm_score, post_score, hours):
-    subreddit = reddit.subreddit(sub)
+def filter_submissions(submissions, submission_score, hours):
+    submissions = filterfalse(lambda p: not scoreOver(
+        p, submission_score), submissions)
+    submissions = filterfalse(lambda p: not inPastHours(
+        p.created_utc, hours), submissions)
+    return submissions
 
-    # assume you have a Subreddit instance bound to variable `subreddit`
-    hot_posts = subreddit.hot(limit=lim)
-    hot_posts = filterfalse(lambda p: not scoreOver(p, post_score), hot_posts)
-    hot_posts = filterfalse(lambda p: not inPastHours(
-        p.created_utc, hours), hot_posts)
 
+def filter_posts(posts, post_score, hours):
+    posts = filter_submissions(posts, post_score, hours)
+    posts = filterfalse(lambda p: p in blacklist, posts)
+    posts = filterfalse(lambda p: p.locked, posts)
+    return posts
+
+
+def filter_comments(comments, comment_score, hours):
+    return filter_submissions(comments, comment_score, hours)
+
+
+def hot_relevant_sub_bag(sub, lim, post_score, post_hours, comm_score, comm_hours):
+    hot_posts = sub.hot(limit=lim)
+    hot_posts = filter_posts(hot_posts, post_score, post_hours)
     bag = ""
     for p in hot_posts:
-        if(p.subreddit.name.lower() not in blacklist and not p.locked):
-            p.comments.replace_more(limit=0)
-            comment_queue = p.comments[:]  # Seed with top-level
-            while comment_queue:
-                comment = comment_queue.pop(0)
-                if(scoreOver(comment, comm_score)):
-                    bag += ' ' + clean(comment.body)
-                comment_queue.extend(comment.replies)
-    return set(bag.split())
+        p.comments.replace_more()
+        hot_comments = list(filter_comments(
+            p.comments.list(), comm_score, comm_hours))
+        print("Comments found: " + str(len(hot_comments)))
+        for c in hot_comments:
+            print("Comment executed.")
+            clean_comment = clean(c.body)
+            bag += ' ' + clean_comment
+    return set(clean(bag.strip()).split())
+
+
+def hot_relevant_reddit_bag(reddit, lim, post_score, post_hours, comm_score, comm_hours):
+    # assume you have a Subreddit instance bound to variable `subreddit`
+    hot_posts = reddit.subreddit("all").hot(limit=lim)
+    hot_posts = filter_posts(hot_posts, post_score, post_hours)
+
+    hot_subs = {p.subreddit.display_name: p.subreddit for p in hot_posts}
+    bag = set()
+    for sub in hot_subs.keys():
+        print("Working on: " + sub)
+        bag = bag.union(hot_relevant_sub_bag(reddit.subreddit(sub), lim,
+                                             post_score, post_hours, comm_score, comm_hours))
+
+    return bag
 
 
 def word_set_from_dir(directory, folder, encoding):
@@ -173,6 +202,21 @@ def partition(items, predicate=bool):
             (item for pred, item in b if pred))
 
 
+def stem_set(word_set):
+    stemmer = PorterStemmer()
+    return set([stemmer.stem(word) for word in word_set])
+
+
+reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
+                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)')
+reddit_set = hot_relevant_reddit_bag(reddit_ro, 100, 30, 4, 8, 2)
+
+stemmer = PorterStemmer()
+reddit_set_stem_map = {stemmer.stem(word): word for word in reddit_set}
+
+print("Reddit Not Stemmed Unique Count: " + str(len(reddit_set)))
+print("Reddit Stemmed Unique Count: " + str(len(reddit_set_stem_map.keys())))
+
 dictionary_set = set()
 with open('dictionary/words_dictionary.json', 'r') as json_file:
     dictionary_set = set(json.load(json_file))
@@ -189,13 +233,9 @@ corpus_word_set = lovecraft_set.union(poe_set).union(shake_set)
 offensive_set = word_set_from_dir_no_clean(
     "./offensive", "offensive/", "windows-1252")
 
-stemmer = PorterStemmer()
-corpus_word_set_stems = set([stemmer.stem(w)
-                             for w in corpus_word_set]) - offensive_set
-
-#filter for words in the dictionary
-#note our local dictionary is only approximate
-valid_stem_set = set([stemmer.stem(w) for w in dictionary_set])
+corpus_word_set_stems = stem_set(corpus_word_set) - offensive_set
+valid_stem_set = stem_set(dictionary_set)
+corpus_word_set_stems = corpus_word_set_stems.intersection(valid_stem_set)
 
 print("Corpus Not Stemmed Unique Count: " + str(len(corpus_word_set)))
 print("Corpus Stemmed Unique Count: " + str(len(corpus_word_set_stems)))
@@ -220,79 +260,75 @@ print("Freq Stem Map Count: " + str(len(freq_stem_dict)))
 freq_set_20 = set(filterfalse(
     lambda s: freq_stem_dict[s] >= 300000, freq_stem_dict.keys()))
 
-reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
-                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)')
-reddit_set = hot_relevant_reddit_bag(reddit_ro, "all", 100, 15, 15, 4)
-reddit_set_stem_map = {}
-for word in reddit_set:
-    reddit_set_stem_map[stemmer.stem(word)] = word  # dirty hack, fix this
-
-print("Reddit Not Stemmed Unique Count: " + str(len(reddit_set)))
-print("Reddit Stemmed Unique Count: " + str(len(reddit_set_stem_map.keys())))
-
 lit_words_20 = corpus_word_set_stems.intersection(
     reddit_set_stem_map.keys()).intersection(freq_set_20)
 
 print(lit_words_20)
 
+# This is going to be cleaned up & simplified but for now it is what it is
 final_results = []
 for w in lit_words_20:
     real_word = reddit_set_stem_map[w]
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
                             real_word + "?key=" + secrets.webster_dict_key)
     webster_def = response.json()
-    if(len(webster_def) != 0):
-        # not-a-word that happened to be in our word dict
-        if(type(webster_def[0]) is str):
+    if (len(webster_def) == 0 or type(webster_def[0]) is str):
+        print("Thesaurus fallback...")
+        response = requests.get("https://www.dictionaryapi.com/api/v3/references/thesaurus/json/" +
+                                real_word + "?key=" + secrets.webster_thes_key)
+        webster_def = response.json()
+        if (len(webster_def) == 0 or type(webster_def[0]) is str):
+            print("Thesaurus fallback failure...")
             continue
-        real_freq = 0
-        first_def = webster_def[0]
-        first_def_meta = first_def['meta']
-        # Filter out offensive words not included in my list
-        if(first_def_meta["offensive"]):
-            continue
-        word_webster_stems = first_def_meta['stems']
 
-        real_variants = list(filterfalse(lambda variant: len(
-            variant.split()) > 1, word_webster_stems))  # get rid of phrasal variants
-        real_variants.append(real_word)
-        # reduce to unique variants
-        real_variants = set([variant.lower() for variant in real_variants])
+    real_freq = 0
+    first_def = webster_def[0]
+    first_def_meta = first_def['meta']
+    # Filter out offensive words not included in my list
+    if(first_def_meta["offensive"]):
+        continue
+    word_webster_stems = first_def_meta['stems']
 
-        # take each unique porter-stem and map it to the most common variant which maps to the stem
-        # for example, ["efface", "effacing", "effaces", "effaced"] would turn into ["effac": "efface"]
-        real_variants_stem_map = {}
-        for variant in real_variants:
-            variant_stem = stemmer.stem(variant)
-            if(variant_stem not in real_variants_stem_map):
-                # some variants of rare words are so rare that they don't show up in our frequency list
-                if(variant in freq_word_dict):
-                    real_variants_stem_map[variant_stem] = (variant)
-            else:
-                # check if the stem is currently mapped to the most common word variant which "stems into the stem"
-                most_common_variant_to_stem = real_variants_stem_map[variant_stem]
-                if(variant in freq_word_dict.keys() and most_common_variant_to_stem in freq_word_dict.keys()):
-                    current_variant_freq = freq_word_dict[variant]
-                    most_common_variant_to_stem_freq = freq_word_dict[most_common_variant_to_stem]
-                    if(current_variant_freq > most_common_variant_to_stem_freq):
-                        real_variants_stem_map[variant_stem] = variant
+    real_variants = list(filterfalse(lambda variant: len(
+        variant.split()) > 1, word_webster_stems))  # get rid of phrasal variants
+    real_variants.append(real_word)
+    # reduce to unique variants
+    real_variants = set([variant.lower() for variant in real_variants])
 
-        print(real_variants_stem_map)
-
-        for variant_stem in real_variants_stem_map.keys():
+    # take each unique porter-stem and map it to the most common variant which maps to the stem
+    # for example, ["efface", "effacing", "effaces", "effaced"] would turn into ["effac": "efface"]
+    real_variants_stem_map = {}
+    for variant in real_variants:
+        variant_stem = stemmer.stem(variant)
+        if(variant_stem not in real_variants_stem_map):
+            # some variants of rare words are so rare that they don't show up in our frequency list
+            if(variant in freq_word_dict):
+                real_variants_stem_map[variant_stem] = (variant)
+        else:
+            # check if the stem is currently mapped to the most common word variant which "stems into the stem"
             most_common_variant_to_stem = real_variants_stem_map[variant_stem]
-            if(most_common_variant_to_stem in freq_word_dict.keys()):
-                variant_freq = freq_word_dict[most_common_variant_to_stem]
-                print(most_common_variant_to_stem + " " + str(variant_freq))
-                real_freq += variant_freq
-        def_field = first_def["def"]
-        is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
-        rarity_score = real_freq*len(webster_def)
-        if(is_archaic):
-            rarity_score = rarity_score/5
-        final_results.append((real_word, rarity_score))
-        print(real_word + " || stem-reduced rarity score: " + str(rarity_score))
-        print("\n\n\n")
+            if(variant in freq_word_dict.keys() and most_common_variant_to_stem in freq_word_dict.keys()):
+                current_variant_freq = freq_word_dict[variant]
+                most_common_variant_to_stem_freq = freq_word_dict[most_common_variant_to_stem]
+                if(current_variant_freq > most_common_variant_to_stem_freq):
+                    real_variants_stem_map[variant_stem] = variant
+
+    print(real_variants_stem_map)
+
+    for variant_stem in real_variants_stem_map.keys():
+        most_common_variant_to_stem = real_variants_stem_map[variant_stem]
+        if(most_common_variant_to_stem in freq_word_dict.keys()):
+            variant_freq = freq_word_dict[most_common_variant_to_stem]
+            print(most_common_variant_to_stem + " " + str(variant_freq))
+            real_freq += variant_freq
+    def_field = first_def["def"]
+    is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
+    rarity_score = real_freq*len(webster_def)
+    if(is_archaic):
+        rarity_score = rarity_score/5
+    final_results.append((real_word, rarity_score))
+    print(real_word + " || stem-reduced rarity score: " + str(rarity_score))
+    print("\n\n\n")
 
 final_results = sorted(final_results, key=lambda x: x[1])
 for final_tup in final_results:

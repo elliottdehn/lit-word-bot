@@ -1,3 +1,5 @@
-%suggestions | %source | %charity | %my_origin | %hire
+Good job!
+
+%suggestions | %source | %charity | %my_origin | %hire | %contribute
 
 I'm a 🤖 made with ❤️
