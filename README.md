@@ -6,5 +6,5 @@ Status: not done yet. You are able to clone the repository, supply API keys in s
 You will need API keys for Merriam-Webster's API from here: https://dictionaryapi.com/
 and Reddit API keys from here: https://www.reddit.com/prefs/apps/
 
-Running the bot: once you've supplied the keys, you can run the bot using "pipenv run python main.py"
+Running the bot: once you've supplied the keys, you can run the bot using "pipenv install" then "pipenv run python main.py"
 It was written on 3.8 and compatibility with older versions is unknown.
