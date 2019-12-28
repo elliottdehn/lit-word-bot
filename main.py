@@ -218,7 +218,7 @@ print("Reddit Not Stemmed Unique Count: " + str(len(reddit_set)))
 print("Reddit Stemmed Unique Count: " + str(len(reddit_set_stem_map.keys())))
 
 dictionary_set = set()
-with open('dictionary/words_dictionary.json', 'r') as json_file:
+with open('dict/words_dictionary.json', 'r') as json_file:
     dictionary_set = set(json.load(json_file))
 
 lovecraft_set = real_word_set_from_word_set(word_set_from_dir(
