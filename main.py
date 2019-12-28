@@ -193,7 +193,6 @@ def hot_sub_comment_bags(sub, lim, post_score, post_hours, comm_score, comm_hour
             p.comments.list(), comm_score, comm_hours))
         print("Comments found: " + str(len(hot_comments)))
         for c in hot_comments:
-            print("Comment executed.")
             bag.append(associate_words(c, c.body))
     return bag
 
