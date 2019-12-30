@@ -253,7 +253,7 @@ def stem_set(word_set):
 
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
-                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)')
+                        user_agent='com.local.litwordbot:Python 3.8:v1.0 (by /u/lit_word_bot)')
 reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 0, 1, 0, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 #some positive tests. These words should always appear in the output list.
@@ -309,20 +309,22 @@ for filename in next(walk("./frequency"))[2]:
 
 print("Freq Stem Map Count: " + str(len(freq_stem_dict)))
 
+#Rough frequency filter to get rid of words over X frequency, including
+#their various forms
 freq_set_20 = set(filterfalse(
-    lambda s: freq_stem_dict[s] >= 300000, freq_stem_dict.keys()))
+    lambda s: freq_stem_dict[s] >= 60000, freq_stem_dict.keys()))
 
-lit_words_20 = corpus_word_set_stems.intersection(
+candidate_words = corpus_word_set_stems.intersection(
     reddit_set_stem_map.keys()).intersection(freq_set_20)
 
-print(lit_words_20)
+print(candidate_words)
 
 # This is going to be cleaned up & simplified but for now it is what it is
 # This could be made !!!!WAY!!!! more abstract to pull in many sources.
 # Existing desire: if(isWorthy(word)): post(word, Comment)
 # That line above is literally all that matters here.
 final_results = []
-for w in lit_words_20:
+for w in candidate_words:
     real_word = reddit_set_stem_map[w]
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
                             real_word + "?key=" + secrets.webster_dict_key)
@@ -336,46 +338,30 @@ for w in lit_words_20:
             print("Thesaurus fallback missed...\n\n\n")
             continue
 
-    real_freq = 0
+    
     first_def = webster_def[0]
     first_def_meta = first_def['meta']
     # Filter out offensive words not included in my list
     if(first_def_meta["offensive"]):
-        continue
-    word_webster_stems = first_def_meta['stems']
+        continue #obviously don't define offensive words
+    elif (first_def_meta.id.lower() != first_def_meta.id):
+        continue #probably a name or an acronym
 
+    # get rid of phrasal variants
     real_variants = list(filterfalse(lambda variant: len(
-        variant.split()) > 1, word_webster_stems))  # get rid of phrasal variants
+        variant.split()) > 1, first_def_meta['stems']))
+
+    #add current word to variants
     real_variants.append(real_word)
+
     # reduce to unique variants
     real_variants = set([variant.lower() for variant in real_variants])
 
-    # take each unique porter-stem and map it to the most common variant which maps to the stem
-    # for example, ["efface", "effacing", "effaces", "effaced"] would turn into ["effac": "efface"]
-    real_variants_stem_map = {}
+    real_freq = 0
     for variant in real_variants:
-        variant_stem = stemmer.stem(variant)
-        if(variant_stem not in real_variants_stem_map):
-            # some variants of rare words are so rare that they don't show up in our frequency list
-            if(variant in freq_word_dict):
-                real_variants_stem_map[variant_stem] = (variant)
-        else:
-            # check if the stem is currently mapped to the most common word variant which "stems into the stem"
-            most_common_variant_to_stem = real_variants_stem_map[variant_stem]
-            if(variant in freq_word_dict.keys() and most_common_variant_to_stem in freq_word_dict.keys()):
-                current_variant_freq = freq_word_dict[variant]
-                most_common_variant_to_stem_freq = freq_word_dict[most_common_variant_to_stem]
-                if(current_variant_freq > most_common_variant_to_stem_freq):
-                    real_variants_stem_map[variant_stem] = variant
+        if variant in freq_word_dict:
+            real_freq += freq_word_dict[variant]
 
-    print(real_variants_stem_map)
-
-    for variant_stem in real_variants_stem_map.keys():
-        most_common_variant_to_stem = real_variants_stem_map[variant_stem]
-        if(most_common_variant_to_stem in freq_word_dict.keys()):
-            variant_freq = freq_word_dict[most_common_variant_to_stem]
-            print(most_common_variant_to_stem + " " + str(variant_freq))
-            real_freq += variant_freq
     if "shortdef" in first_def and len(first_def["shortdef"]) != 0:
         def_field = first_def["shortdef"]
         is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
