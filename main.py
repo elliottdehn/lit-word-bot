@@ -316,13 +316,16 @@ print("Freq Stem Map Count: " + str(len(freq_stem_dict)))
 #Rough frequency filter to get rid of words over X frequency, including
 #their various forms
 #300,000 is permissive for now, to get an idea of rarities
-freq_set_20 = set(filterfalse(
-    lambda s: freq_stem_dict[s] >= 300000, freq_stem_dict.keys()))
+rare_stems = set(filterfalse(
+    lambda s: freq_stem_dict[s] >= 60000, freq_stem_dict.keys()))
 
-candidate_words = set(reddit_set_stem_map.keys()).intersection(freq_set_20) - offensive_set
+corpus_word_set_stems = corpus_word_set_stems.intersection(rare_stems)
+print("Corupus stem set filtered for rare stems size: " + str(len(corpus_word_set_stems)))
+#candidate_words = set(reddit_set_stem_map.keys()).intersection(freq_set_20) - offensive_set
 
-#candidate_words = corpus_word_set_stems.intersection(
-#    reddit_set_stem_map.keys()).intersection(freq_set_20)
+#What do we gain for using the corpus?
+#We avoid words like "xylophone" and "bloop"
+candidate_words = corpus_word_set_stems.intersection(reddit_set_stem_map.keys())
 
 print("Calling API for candidates: " + str(candidate_words))
 
@@ -372,7 +375,7 @@ for w in candidate_words:
     for variant in real_variants:
         if variant in freq_word_dict:
             variant_frequency = freq_word_dict[variant]
-            print("found variant in frequencies: " + str(variant_frequency))
+            print("found variant in frequencies: " + variant + " : " + str(variant_frequency))
             real_freq += freq_word_dict[variant]
 
     if "shortdef" in first_def and len(first_def["shortdef"]) != 0:
