@@ -325,6 +325,7 @@ print(candidate_words)
 # That line above is literally all that matters here.
 final_results = []
 for w in candidate_words:
+    #Expand the stem back to its original word
     real_word = reddit_set_stem_map[w]
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
                             real_word + "?key=" + secrets.webster_dict_key)
@@ -344,7 +345,7 @@ for w in candidate_words:
     # Filter out offensive words not included in my list
     if(first_def_meta["offensive"]):
         continue #obviously don't define offensive words
-    elif (first_def_meta.id.lower() != first_def_meta.id):
+    elif (first_def_meta["id"].lower() != first_def_meta["id"]):
         continue #probably a name or an acronym
 
     # get rid of phrasal variants
