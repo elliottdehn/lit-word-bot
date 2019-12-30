@@ -1,6 +1,5 @@
 from datetime import *
 from itertools import *
-from more_itertools import flatten
 # https://praw.readthedocs.io/en/latest/getting_started/quick_start.html
 import praw
 from nltk.stem import *
@@ -206,7 +205,7 @@ def hot_sub_comment_bags(sub, lim, post_score, post_hours, comm_score, comm_hour
 
 def hot_all_word_map(reddit, lim, post_score, post_hours, comm_score, comm_hours):
     # assume you have a Subreddit instance bound to variable `subreddit`
-    hot_posts = reddit.subreddit("all").hot(limit=lim)
+    hot_posts = reddit.subreddit("all").new(limit=lim)
     hot_posts = filter_posts(hot_posts, post_score, post_hours)
 
     hot_subs = {p.subreddit.display_name: p.subreddit for p in hot_posts}
@@ -255,8 +254,11 @@ def stem_set(word_set):
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 30, 4, 8, 2)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 0, 1, 0, 1)
 reddit_set = set(reddit_word_to_comment.keys())
+#some positive tests. These words should always appear in the output list.
+#reddit_set = reddit_set.union(set(["litten", "minaret", "effaces"]))
+print("Possible words, prior to any filtering: " + str(reddit_set))
 
 stemmer = PorterStemmer()
 reddit_set_stem_map = {stemmer.stem(word): word for word in reddit_set}
@@ -274,14 +276,17 @@ poe_set = real_word_set_from_word_set(
     word_set_from_dir("./poe", "poe/", "utf-8"), dictionary_set)
 shake_set = real_word_set_from_word_set(word_set_from_dir(
     "./shakespeare", "shakespeare/", "windows-1252"), dictionary_set)
+dick_set = real_word_set_from_word_set(word_set_from_dir(
+    "./dick", "dick/", "utf-8"), dictionary_set)
 
-corpus_word_set = lovecraft_set.union(poe_set).union(shake_set)
+corpus_word_set = lovecraft_set.union(poe_set).union(shake_set).union(dick_set)
 
 offensive_set = word_set_from_dir_no_clean(
     "./offensive", "offensive/", "windows-1252")
 
 corpus_word_set_stems = stem_set(corpus_word_set) - offensive_set
 valid_stem_set = stem_set(dictionary_set)
+#Real words used by real venerated authors, which also aren't considered offensive
 corpus_word_set_stems = corpus_word_set_stems.intersection(valid_stem_set)
 
 print("Corpus Not Stemmed Unique Count: " + str(len(corpus_word_set)))
@@ -313,6 +318,9 @@ lit_words_20 = corpus_word_set_stems.intersection(
 print(lit_words_20)
 
 # This is going to be cleaned up & simplified but for now it is what it is
+# This could be made !!!!WAY!!!! more abstract to pull in many sources.
+# Existing desire: if(isWorthy(word)): post(word, Comment)
+# That line above is literally all that matters here.
 final_results = []
 for w in lit_words_20:
     real_word = reddit_set_stem_map[w]
@@ -368,16 +376,38 @@ for w in lit_words_20:
             variant_freq = freq_word_dict[most_common_variant_to_stem]
             print(most_common_variant_to_stem + " " + str(variant_freq))
             real_freq += variant_freq
-    def_field = first_def["def"]
-    is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
-    rarity_score = real_freq*len(webster_def)
-    if(is_archaic):
-        rarity_score = rarity_score/5
-    final_results.append((real_word, rarity_score))
-    print(real_word + " || stem-reduced rarity score: " + str(rarity_score))
-    print("\n\n\n")
+    if "shortdef" in first_def and len(first_def["shortdef"]) != 0:
+        def_field = first_def["shortdef"]
+        is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
+        rarity_score = real_freq*len(webster_def)
+        if(is_archaic):
+            rarity_score = rarity_score/5
+        final_results.append((real_word, rarity_score, def_field[0]))
+        print(first_def_meta['id'].split(":")[0] + " || stem-reduced rarity score: " + str(rarity_score))
+        print("\n\n\n")
 
 #This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])
+count = 0
 for final_tup in final_results:
-    print(str(final_tup) + " || Associated comment ID: " + str(reddit_word_to_comment[final_tup[0]]))
+    print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " + str(reddit_word_to_comment[final_tup[0]]))
+    count += 1
+
+choice = int(input("Pick a word to define (0-" + str(count - 1) + ": "))
+chosen_word = final_results[choice][0]
+chosen_word_def = final_results[choice][2]
+chosen_comment = reddit_word_to_comment[chosen_word][0]
+poster = chosen_comment.author.name
+
+comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + chosen_word_def + "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
+print(comment)
+
+reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
+                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)',
+                        username=secrets.reddit_username,
+                        password=secrets.reddit_password)
+
+to_be_replied = reddit_rw.comment(chosen_comment.id)
+to_be_replied.reply(comment)
+
+
