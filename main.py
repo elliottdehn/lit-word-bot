@@ -122,10 +122,13 @@ def filter_submissions(submissions, submission_score, hours):
         p, submission_score), submissions)
     submissions = filterfalse(lambda p: not inPastHours(
         p.created_utc, hours), submissions)
+    submissions = filterfalse(lambda p: p.stickied, submissions)
+    submissions = filterfalse(lambda p: p.distinguished == "moderator", submissions)
     return submissions
 
 
 def filter_posts(posts, post_score, hours):
+    posts = filterfalse(lambda p: p.num_comments == 0, posts)
     posts = filter_submissions(posts, post_score, hours)
     posts = filterfalse(lambda p: p in blacklist, posts)
     posts = filterfalse(lambda p: p.locked, posts)
@@ -187,12 +190,13 @@ def hot_sub_comment_bags(sub, lim, post_score, post_hours, comm_score, comm_hour
     hot_posts = filter_posts(hot_posts, post_score, post_hours)
     bag = list()
     for p in hot_posts:
-        p.comments.replace_more()
-        hot_comments = list(filter_comments(
-            p.comments.list(), comm_score, comm_hours))
-        print("Comments found: " + str(len(hot_comments)))
-        for c in hot_comments:
-            bag.append(associate_words(c, c.body))
+        if(p.num_comments != 0):
+            p.comments.replace_more()
+            hot_comments = list(filter_comments(
+                p.comments.list(), comm_score, comm_hours))
+            print("Comments found: " + str(len(hot_comments)))
+            for c in hot_comments:
+                bag.append(associate_words(c, c.body))
     return bag
 
 # Set((Comment, {words})) -> Map((word -> Comment))
@@ -254,7 +258,7 @@ def stem_set(word_set):
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwordbot:Python 3.8:v1.0 (by /u/lit_word_bot)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 0, 1, 0, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 1, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 #some positive tests. These words should always appear in the output list.
 #reddit_set = reddit_set.union(set(["litten", "minaret", "effaces"]))
@@ -311,13 +315,16 @@ print("Freq Stem Map Count: " + str(len(freq_stem_dict)))
 
 #Rough frequency filter to get rid of words over X frequency, including
 #their various forms
+#300,000 is permissive for now, to get an idea of rarities
 freq_set_20 = set(filterfalse(
-    lambda s: freq_stem_dict[s] >= 60000, freq_stem_dict.keys()))
+    lambda s: freq_stem_dict[s] >= 300000, freq_stem_dict.keys()))
 
-candidate_words = corpus_word_set_stems.intersection(
-    reddit_set_stem_map.keys()).intersection(freq_set_20)
+candidate_words = set(reddit_set_stem_map.keys()).intersection(freq_set_20) - offensive_set
 
-print(candidate_words)
+#candidate_words = corpus_word_set_stems.intersection(
+#    reddit_set_stem_map.keys()).intersection(freq_set_20)
+
+print("Calling API for candidates: " + str(candidate_words))
 
 # This is going to be cleaned up & simplified but for now it is what it is
 # This could be made !!!!WAY!!!! more abstract to pull in many sources.
@@ -327,6 +334,7 @@ final_results = []
 for w in candidate_words:
     #Expand the stem back to its original word
     real_word = reddit_set_stem_map[w]
+    print("Working on: " + real_word)
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
                             real_word + "?key=" + secrets.webster_dict_key)
     webster_def = response.json()
@@ -358,9 +366,13 @@ for w in candidate_words:
     # reduce to unique variants
     real_variants = set([variant.lower() for variant in real_variants])
 
+    print("Checking variant frequency:" + str(real_variants))
+
     real_freq = 0
     for variant in real_variants:
         if variant in freq_word_dict:
+            variant_frequency = freq_word_dict[variant]
+            print("found variant in frequencies: " + str(variant_frequency))
             real_freq += freq_word_dict[variant]
 
     if "shortdef" in first_def and len(first_def["shortdef"]) != 0:
