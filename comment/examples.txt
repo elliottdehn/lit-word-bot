@@ -1,5 +1,0 @@
-%divider
-
-Examples: (%w_examples_source)
-
-%w_examples

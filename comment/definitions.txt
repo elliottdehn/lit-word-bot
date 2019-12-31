@@ -1,7 +1,0 @@
-%divider
-
-Definitions: (%w_definition_source)
-
-%w_dictionary
-
-%w_google || %w_wiki || %w_trend || %w_ngram

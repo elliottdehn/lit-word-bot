@@ -11,6 +11,7 @@ import json
 import heapq
 import secrets as secrets
 from functools import reduce
+import glob
 
 blacklist = [
     "anime",
@@ -76,7 +77,8 @@ blacklist = [
     "toonami",
     "trumpet",
     "ps2ceres",
-    "duelingcorner"
+    "duelingcorner",
+    "medical_advice"
 ]
 
 
@@ -123,12 +125,13 @@ def filter_submissions(submissions, submission_score, hours):
     submissions = filterfalse(lambda p: not inPastHours(
         p.created_utc, hours), submissions)
     submissions = filterfalse(lambda p: p.stickied, submissions)
-    submissions = filterfalse(lambda p: p.distinguished == "moderator", submissions)
+    submissions = filterfalse(
+        lambda p: p.distinguished == "moderator", submissions)
     return submissions
 
 
 def filter_posts(posts, post_score, hours):
-    posts = filterfalse(lambda p: p.num_comments == 0, posts)
+    posts = filterfalse(lambda p: p.num_comments < 3, posts)
     posts = filter_submissions(posts, post_score, hours)
     posts = filterfalse(lambda p: p in blacklist, posts)
     posts = filterfalse(lambda p: p.locked, posts)
@@ -165,7 +168,8 @@ def split(left, elm_set):
 def nuples_to_map(nuple_set, key_idx):
     nuple_map = {nuple[key_idx]: set() for nuple in nuple_set}
     for key in nuple_map.keys():
-        nuple_map[key] = set(filterfalse(lambda elm: elm[key_idx] != key, nuple_set))
+        nuple_map[key] = set(filterfalse(
+            lambda elm: elm[key_idx] != key, nuple_set))
     return nuple_map
 
 # - select the highest scoring comment for each, resulting in (word -> Comment) mapping
@@ -225,24 +229,19 @@ def hot_all_word_map(reddit, lim, post_score, post_hours, comm_score, comm_hours
 def word_set_from_dir(directory, folder, encoding):
     words = ''
     for filename in next(walk(directory))[2]:
-        with io.open(folder + filename, "r", encoding=encoding) as f:
+        with io.open(folder + filename, "r", encoding=encoding, errors='ignore') as f:
             for line in f:
-                words += ' ' + clean(line)
+                words += clean(line) + ' '
     return set(clean(words).split())
 
 
 def word_set_from_dir_no_clean(directory, folder, encoding):
     words = ''
     for filename in next(walk(directory))[2]:
-        with io.open(folder + filename, "r", encoding=encoding) as f:
+        with io.open(folder + filename, "r", encoding=encoding, errors='ignore') as f:
             for line in f:
-                words += ' ' + line
-    return set(words.split())
-
-
-def real_word_set_from_word_set(word_set, real_words):
-    fake_words = word_set - real_words
-    return word_set - fake_words
+                words += line + ' '
+    return set(words.strip().split())
 
 
 def partition(items, predicate=bool):
@@ -258,9 +257,9 @@ def stem_set(word_set):
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwordbot:Python 3.8:v1.0 (by /u/lit_word_bot)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 1, 1, 1, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, None, 3, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
-#some positive tests. These words should always appear in the output list.
+# some positive tests. These words should always appear in the output list.
 #reddit_set = reddit_set.union(set(["litten", "minaret", "effaces"]))
 print("Possible words, prior to any filtering: " + str(reddit_set))
 
@@ -270,72 +269,51 @@ reddit_set_stem_map = {stemmer.stem(word): word for word in reddit_set}
 print("Reddit Not Stemmed Unique Count: " + str(len(reddit_set)))
 print("Reddit Stemmed Unique Count: " + str(len(reddit_set_stem_map.keys())))
 
-dictionary_set = set()
-with open('dict/words_dictionary.json', 'r') as json_file:
-    dictionary_set = set(json.load(json_file))
-
-lovecraft_set = real_word_set_from_word_set(word_set_from_dir(
-    "./lovecraft", "lovecraft/", "windows-1252"), dictionary_set)
-poe_set = real_word_set_from_word_set(
-    word_set_from_dir("./poe", "poe/", "utf-8"), dictionary_set)
-shake_set = real_word_set_from_word_set(word_set_from_dir(
-    "./shakespeare", "shakespeare/", "windows-1252"), dictionary_set)
-dick_set = real_word_set_from_word_set(word_set_from_dir(
-    "./dick", "dick/", "utf-8"), dictionary_set)
-
-corpus_word_set = lovecraft_set.union(poe_set).union(shake_set).union(dick_set)
-
 offensive_set = word_set_from_dir_no_clean(
     "./offensive", "offensive/", "windows-1252")
 
-corpus_word_set_stems = stem_set(corpus_word_set) - offensive_set
-valid_stem_set = stem_set(dictionary_set)
-#Real words used by real venerated authors, which also aren't considered offensive
-corpus_word_set_stems = corpus_word_set_stems.intersection(valid_stem_set)
+corpus_stem_dict = {}
+corpus_word_dict = {}
 
-print("Corpus Not Stemmed Unique Count: " + str(len(corpus_word_set)))
-print("Corpus Stemmed Unique Count: " + str(len(corpus_word_set_stems)))
+txt_files = glob.glob("./" + "corpusfreq/" + "*.txt")
+with io.open(txt_files[0], "r", encoding="utf-8") as f:
+    for line in f:
+        w, c = line.split(":")
+        corpus_word_dict[w] = int(c)
+        w = stemmer.stem(clean(w))
+        if(w in corpus_stem_dict.keys()):
+            count = corpus_stem_dict[w]
+            corpus_stem_dict[w] = count + int(c)
+        else:
+            corpus_stem_dict[w] = int(c)
 
-freq_stem_dict = {}
-freq_word_dict = {}
-for filename in next(walk("./frequency"))[2]:
-    with io.open("frequency/" + filename, "r", encoding="utf-8") as f:
-        for line in f:
-            w, c = line.split("\t")
-            freq_word_dict[w] = int(c)
-            w = stemmer.stem(clean(w))
-            if(len(w) != 0 and w in valid_stem_set):
-                if(w in freq_stem_dict.keys()):
-                    count = freq_stem_dict[w]
-                    freq_stem_dict[w] = count + int(c)
-                else:
-                    freq_stem_dict[w] = int(c)
+corpus_word_set = corpus_word_dict.keys()
 
-print("Freq Stem Map Count: " + str(len(freq_stem_dict)))
-
-#Rough frequency filter to get rid of words over X frequency, including
-#their various forms
-#300,000 is permissive for now, to get an idea of rarities
+# Rough frequency filter to get rid of words over X frequency, including
+# their various forms
+# 300,000 is permissive for now, to get an idea of rarities
 rare_stems = set(filterfalse(
-    lambda s: freq_stem_dict[s] >= 60000, freq_stem_dict.keys()))
+    lambda s: corpus_stem_dict[s] >= 70000, corpus_stem_dict.keys()))
 
-corpus_word_set_stems = corpus_word_set_stems.intersection(rare_stems)
-print("Corupus stem set filtered for rare stems size: " + str(len(corpus_word_set_stems)))
-#candidate_words = set(reddit_set_stem_map.keys()).intersection(freq_set_20) - offensive_set
+print("Corpus stem set filtered for rare stems size: " +
+      str(len(rare_stems)))
 
-#What do we gain for using the corpus?
-#We avoid words like "xylophone" and "bloop"
-candidate_words = corpus_word_set_stems.intersection(reddit_set_stem_map.keys())
+# What do we gain for using the corpus?
+# We avoid "words" like "bloop" (blooper)
+candidate_stems = rare_stems.intersection(
+    reddit_set_stem_map.keys()) - offensive_set
 
-print("Calling API for candidates: " + str(candidate_words))
+for candidate_stem in candidate_stems:
+    print("Calling API for candidate: " + reddit_set_stem_map[candidate_stem])
 
 # This is going to be cleaned up & simplified but for now it is what it is
 # This could be made !!!!WAY!!!! more abstract to pull in many sources.
 # Existing desire: if(isWorthy(word)): post(word, Comment)
 # That line above is literally all that matters here.
+
 final_results = []
-for w in candidate_words:
-    #Expand the stem back to its original word
+for w in candidate_stems:
+    # Expand the stem back to its original word
     real_word = reddit_set_stem_map[w]
     print("Working on: " + real_word)
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
@@ -350,20 +328,19 @@ for w in candidate_words:
             print("Thesaurus fallback missed...\n\n\n")
             continue
 
-    
     first_def = webster_def[0]
     first_def_meta = first_def['meta']
     # Filter out offensive words not included in my list
     if(first_def_meta["offensive"]):
-        continue #obviously don't define offensive words
+        continue  # obviously don't define offensive words
     elif (first_def_meta["id"].lower() != first_def_meta["id"]):
-        continue #probably a name or an acronym
+        continue  # probably a name or an acronym
 
     # get rid of phrasal variants
     real_variants = list(filterfalse(lambda variant: len(
         variant.split()) > 1, first_def_meta['stems']))
 
-    #add current word to variants
+    # add current word to variants
     real_variants.append(real_word)
 
     # reduce to unique variants
@@ -373,26 +350,29 @@ for w in candidate_words:
 
     real_freq = 0
     for variant in real_variants:
-        if variant in freq_word_dict:
-            variant_frequency = freq_word_dict[variant]
-            print("found variant in frequencies: " + variant + " : " + str(variant_frequency))
-            real_freq += freq_word_dict[variant]
+        if variant in corpus_word_dict:
+            variant_frequency = corpus_word_dict[variant]
+            print("found variant in frequencies: " +
+                  variant + " : " + str(variant_frequency))
+            real_freq += corpus_word_dict[variant]
 
-    if "shortdef" in first_def and len(first_def["shortdef"]) != 0:
+    if real_freq != 0 and "shortdef" in first_def and len(first_def["shortdef"]) != 0:
         def_field = first_def["shortdef"]
         is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
-        rarity_score = real_freq*len(webster_def)
+        rarity_score = real_freq
         if(is_archaic):
             rarity_score = rarity_score/5
         final_results.append((real_word, rarity_score, def_field[0]))
-        print(first_def_meta['id'].split(":")[0] + " || stem-reduced rarity score: " + str(rarity_score))
+        print(first_def_meta['id'].split(":")[
+              0] + " || stem-reduced rarity score: " + str(rarity_score))
         print("\n\n\n")
 
-#This is what all that work was for: the rarest word, associated with the best comment
+# This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])
 count = 0
 for final_tup in final_results:
-    print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " + str(reddit_word_to_comment[final_tup[0]]))
+    print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " +
+          str(reddit_word_to_comment[final_tup[0]]))
     count += 1
 
 choice = int(input("Pick a word to define (0-" + str(count - 1) + ": "))
@@ -401,7 +381,9 @@ chosen_word_def = final_results[choice][2]
 chosen_comment = reddit_word_to_comment[chosen_word][0]
 poster = chosen_comment.author.name
 
-comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + chosen_word_def + "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
+comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + \
+    chosen_word_def + \
+    "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
 print(comment)
 
 reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
@@ -411,5 +393,3 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
 
 to_be_replied = reddit_rw.comment(chosen_comment.id)
 to_be_replied.reply(comment)
-
-
