@@ -361,9 +361,7 @@ print(postfilter_words)
 blocker = input("Enter anything to continue.")
 
 final_results = []
-for w in postfilter_words:
-    # Expand the stem back to its original word
-    real_word = reddit_stems[w]
+for real_word in postfilter_words:
     print("Working on: " + real_word)
     response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
                             real_word + "?key=" + secrets.webster_dict_key)
