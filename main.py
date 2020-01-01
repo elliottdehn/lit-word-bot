@@ -420,27 +420,30 @@ for real_word in postfilter_words:
 
 # This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])
-count = 0
-for final_tup in final_results:
-    print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " +
-          str(reddit_word_to_comment[final_tup[0]]))
-    count += 1
 
-choice = int(input("Pick a word to define (0-" + str(count - 1) + ": "))
-chosen_word = final_results[choice][0]
-chosen_word_def = final_results[choice][2]
-chosen_comment = reddit_word_to_comment[chosen_word][0]
-poster = chosen_comment.author.name
+while (True):
+    count = 0
+    for final_tup in final_results:
+        print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " +
+            str(reddit_word_to_comment[final_tup[0]]))
+        count += 1
 
-comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + \
-    chosen_word_def + \
-    "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
-print(comment)
+    choice = int(input("Pick a word to define (0-" + str(count - 1) + ": "))
+    chosen_word = final_results[choice][0]
+    chosen_word_def = final_results[choice][2]
+    chosen_comment = reddit_word_to_comment[chosen_word][0]
+    poster = chosen_comment.author.name
 
-reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
-                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)',
-                        username=secrets.reddit_username,
-                        password=secrets.reddit_password)
+    comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + \
+        chosen_word_def + \
+        "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
+    print(comment)
 
-to_be_replied = reddit_rw.comment(chosen_comment.id)
-to_be_replied.reply(comment)
+    reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
+                            user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)',
+                            username=secrets.reddit_username,
+                            password=secrets.reddit_password)
+
+    to_be_replied = reddit_rw.comment(chosen_comment.id)
+    to_be_replied.reply(comment)
+    to_be_replied.upvote()
