@@ -111,8 +111,7 @@ def clean(body):
     no_dummies = r"\b.{1,3}\b"
 
     replaced = re.sub(urls, ' ', body)
-    replaced = multirepl_list("-|[|]".split('|'), " ", replaced)
-    replaced = multirepl_list("n't|n’t".split('|'), " ", replaced)
+    replaced = multirepl_list("-|[|]|n't|n’t".split('|'), " ", replaced)
     replaced = multirepl_list("'|’".split('|'), " ", replaced)
     replaced = replaced.replace("_", " ")
     replaced = re.sub(spacify, ' ', replaced)
@@ -217,7 +216,7 @@ def hot_sub_comment_bags(sub, lim, post_score, post_hours, comm_score, comm_hour
 def hot_all_word_map(reddit, lim, post_score, post_hours, comm_score, comm_hours):
     # assume you have a Subreddit instance bound to variable `subreddit`
     hot_posts = reddit.subreddit("all").new(limit=lim)
-    hot_posts = filter_posts(hot_posts, post_score, post_hours)
+    hot_posts = filter_posts(hot_posts, 1, 1)
 
     hot_subs = {p.subreddit.display_name: p.subreddit for p in hot_posts}
     bags = list()
@@ -307,7 +306,7 @@ logger.addHandler(handler)
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, 100, 1, 1, 1, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, None, 5, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 reddit_stems = {stem(word): word for word in reddit_set}
 # some positive tests. These words should always appear in the output list.
@@ -436,7 +435,7 @@ while (True):
 
     comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + \
         chosen_word_def + \
-        "**\n\n(according to Merriam-Webster).\n\nI'm new. Was this interesting?"
+        "**\n\n(according to Merriam-Webster).\n\n🤖 I'm new; feel free to provide feedback!"
     print(comment)
 
     reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,

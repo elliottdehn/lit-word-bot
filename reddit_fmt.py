@@ -3,7 +3,7 @@
 from functools import reduce
 
 
-def bold(b):
+def b(b):
     return "**" + str(b) + "**"
 
 
@@ -25,34 +25,34 @@ def code_line(c, indent):
     ret = "    "
     for i in range(indent):
         ret += "    "
-    return str(c)
+    return ret + c
 
 
 def quote(q):
-    return ">" + str(q)
+    return ">" + q
 
 
 def link(desc, url):
-    return "[" + str(desc) + "]" + "(" + str(url) + ")"
+    return "[" + desc + "]" + "(" + url + ")"
 
 
 def newline(l):
-    return str(l) + "    "  # four spaces
+    return l + "    "  # four spaces
 
 # Paragraphs in Lists and Nested lists using a combination
 # of ordered and unordered lists are no longer supported.
 
 
-def paragraph(p):
+def p(p):
     return p + "\n\n"
 
 
 def list_item(pre, li):
-    return pre + " " + str(li) + "\n"
+    return pre + li + "\n"
 
 
 def nested_list_item(pre, li):
-    return " " + list_item(pre, li)
+    return " " + list_item(pre, li) + "\n"
 
 
 def p_list(ls, nest=False):
@@ -61,19 +61,16 @@ def p_list(ls, nest=False):
         if(not nest):
             ret += list_item("+", item)
         else:
-            ret += nested_list_item("+", item)
+            ret += nested_list_item("", item)
     return ret
 
 
-def n_list(ls, nest=False):
+def n_list(ls):
     idx = 1
     ret = ""
     for item in ls:
         pre = str(idx) + "."
-        if(not nest):
-            ret += list_item(pre, item)
-        else:
-            ret += nested_list_item(pre, item)
+        ret += list_item(pre, item)
         idx += 1
     return ret
 
@@ -81,44 +78,63 @@ def n_list(ls, nest=False):
 def rule():
     return "\n***\n"
 
+
 def header(n, txt):
     ret = ""
     for i in range(n):
         ret += "#"
-    return ret.slice[0:6] + " " + str(txt)
+    return ret.slice[0:6] + " " + txt
 
-def user(un):
-    return "/u/" + un
+def cr():
+    return "\n--\n"
+
+def user(u):
+    return "/u/" + u
 
 # Task-specific formatting
 
-def designate(w):
-    return bold(code(w))
+
+def designate(d):
+    return b(d)
+
+def designate_w(w):
+    return designate(code(w.upper()))
 
 def pos(p):
     return it(p)
 
 def mean(d):
-    return code(d)
+    return it(d)
 
-def pad(n):
-    empties = ""
-    for i in range(n):
-        empties += "⠀"  #NOT a space
-    return empties
+def sj(*s):
+    return " ".join(s)
 
-def pads(w):
-    return pad(len(w))
+def greet(u, word):
+    return sj("Hey", user(u + ","), designate_w(word), "is a great word!")
+
+def bc():
+    return " " + b(":") + " "
+
+
+def sense(defs):
+    root = [designate(defs[0])]
+    others = ["..or " + mean(d) for d in defs[1:]]
+    root.extend(others)
+    return p_list(root, nest=True)
+
+def definition(word, pos, defs):
+    return \
+            p(sj(it("(" + pos + ")"), designate_w(word))) + \
+            n_list([sense(sn) for sn in defs])
+
 
 out = \
-    "Hey" + user("peterpants") + ", " + \
-    designate("SQUIB") + " is a " + "cool" + " word!" + \
+    greet("peterpants", "squib") + \
     rule() + \
-    paragraph(designate("SQUIB") + " means:") + \
-    n_list([pos("(verb)") + mean("a short humorous or satiric writing or speech")]) + \
-        p_list(["something", "different"], nest=True) + \
-    n_list([pos("(noun)") + mean("a small firecracker")]) + \
-        p_list(["another", "thing"], nest=True) 
+    definition("squib", "verb", [["a short humorous or satiric writing or speech", "a short news item"], ["a small firecracker", "a broken firecracker in which the powder burns with a fizz"], ["a small electric or pyrotechnic device used to ignite a charge"]]) + \
+    rule() + \
+    definition("squib", "noun", [["to speak, write, or publish squibs"], ["to fire a squib"], ["to utter in an offhand manner", "to make squibs against : LAMPOON"], ["to shoot off : FIRE"], ["to kick (a football) on a kickoff so that it bounces along the ground"]])
+
 
 f = open("out.txt", "w+")
 f.write(out)
