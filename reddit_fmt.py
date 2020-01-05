@@ -85,8 +85,10 @@ def header(n, txt):
         ret += "#"
     return ret.slice[0:6] + " " + txt
 
+
 def cr():
     return "\n--\n"
+
 
 def user(u):
     return "/u/" + u
@@ -97,20 +99,26 @@ def user(u):
 def designate(d):
     return b(d)
 
+
 def designate_w(w):
     return designate(code(w.upper()))
+
 
 def pos(p):
     return it(p)
 
+
 def mean(d):
     return it(d)
+
 
 def sj(*s):
     return " ".join(s)
 
+
 def greet(u, word):
     return sj("Hey", user(u + ","), designate_w(word), "is a great word!")
+
 
 def bc():
     return " " + b(":") + " "
@@ -122,10 +130,11 @@ def sense(defs):
     root.extend(others)
     return p_list(root, nest=True)
 
+
 def definition(word, pos, defs):
     return \
-            p(sj(it("(" + pos + ")"), designate_w(word))) + \
-            n_list([sense(sn) for sn in defs])
+        p(sj(it("(" + pos + ")"), designate_w(word))) + \
+        n_list([sense(sn) for sn in defs])
 
 
 out = \
@@ -133,7 +142,8 @@ out = \
     rule() + \
     definition("squib", "verb", [["a short humorous or satiric writing or speech", "a short news item"], ["a small firecracker", "a broken firecracker in which the powder burns with a fizz"], ["a small electric or pyrotechnic device used to ignite a charge"]]) + \
     rule() + \
-    definition("squib", "noun", [["to speak, write, or publish squibs"], ["to fire a squib"], ["to utter in an offhand manner", "to make squibs against : LAMPOON"], ["to shoot off : FIRE"], ["to kick (a football) on a kickoff so that it bounces along the ground"]])
+    definition("squib", "noun", [["to speak, write, or publish squibs"], ["to fire a squib"], ["to utter in an offhand manner", "to make squibs against : LAMPOON"], [
+               "to shoot off : FIRE"], ["to kick (a football) on a kickoff so that it bounces along the ground"]])
 
 
 f = open("out.txt", "w+")
