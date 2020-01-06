@@ -13,6 +13,7 @@ import secrets as secrets
 from functools import reduce
 import glob
 import logging
+from webster import *
 
 blacklist = [
     "anime",
@@ -306,7 +307,7 @@ logger.addHandler(handler)
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, None, 5, 1, 1, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, 200, 5, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 reddit_stems = {stem(word): word for word in reddit_set}
 # some positive tests. These words should always appear in the output list.
@@ -360,37 +361,15 @@ print(postfilter_words)
 blocker = input("Enter anything to continue.")
 
 final_results = []
+c = WebsterClient()
 for real_word in postfilter_words:
     print("Working on: " + real_word)
-    response = requests.get("https://www.dictionaryapi.com/api/v3/references/collegiate/json/" +
-                            real_word + "?key=" + secrets.webster_dict_key)
-    webster_def = response.json()
-    if (len(webster_def) == 0 or type(webster_def[0]) is str):
-        print("Thesaurus fallback...")
-        response = requests.get("https://www.dictionaryapi.com/api/v3/references/thesaurus/json/" +
-                                real_word + "?key=" + secrets.webster_thes_key)
-        webster_def = response.json()
-        if (len(webster_def) == 0 or type(webster_def[0]) is str):
-            print("Thesaurus fallback missed...\n\n\n")
-            continue
-
-    first_def = webster_def[0]
-    first_def_meta = first_def['meta']
-    # Filter out offensive words not included in my list
-    if(first_def_meta["offensive"]):
+    r = c.define(real_word)
+    if(r.offensive()):
         continue  # obviously don't define offensive words
-    elif (first_def_meta["id"].lower() != first_def_meta["id"]):
-        continue  # probably a name, acronym, or mashup of words
 
     # get rid of phrasal variants
-    real_variants = list(filter(lambda variant: len(
-        variant.split()) == 1, first_def_meta['stems']))
-
-    # add current word to variants
-    real_variants.append(real_word)
-
-    # reduce to unique variants
-    real_variants = set([variant.lower() for variant in real_variants])
+    real_variants = r.variants()
 
     print("Checking variant frequency:" + str(real_variants))
 
@@ -403,19 +382,8 @@ for real_word in postfilter_words:
             real_freq += variant_frequency
         else:
             real_freq += 12711  # lowest freq in the list
-
-    if real_freq != 0 and "shortdef" in first_def and len(first_def["shortdef"]) != 0:
-        def_field = first_def["shortdef"]
-        is_archaic = "sls" in def_field and "archaic" in def_field["sls"]
-        rarity_score = real_freq
-        if(is_archaic):
-            rarity_score = rarity_score/5
-        final_results.append((real_word, rarity_score, def_field[0]))
-        print(first_def_meta['id'].split(":")[
-              0] + " || stem-reduced rarity score: " + str(rarity_score))
-        print("\n\n\n")
-    else:
-        continue
+        
+    final_results.append((real_word, real_freq, r.json[0]["shortdef"][0]))
 
 # This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])

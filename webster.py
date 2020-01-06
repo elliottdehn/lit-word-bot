@@ -54,18 +54,19 @@ class DictionaryResult:
             vs = vs.union(self.subvariants(vs))
             #clever way to grab additional stems/variants
             #ex: orangish -> orange | snakily -> snake
-            vs = vs.union(self.link_words())
-            vs = set(filt.toLower() for filt in filter(lambda w: "-" in w, vs))
+            vs = vs.union(set(self.link_words()))
+
             if (phrases):
                 return vs
             else:
+                vs = set(map(lambda w: w.lower(), filter(lambda w: "-" not in w, vs)))
                 return set(filter(lambda v: len(v.split()) == 1, vs))
         else:
             return None
 
     def link_words(self):
         link_words = re.findall(r"(?<={a_link\|)([^}]+)(?=})", json.dumps(self.json))
-        return set(link_words)
+        return link_words
 
 # "Private"
 
@@ -98,6 +99,56 @@ class DictionaryResult:
             if alts is not None:
                 s = s.union(alts)
         return s
+
+    def offensive(self):
+        for entry in self.json:
+            if (entry["meta"]["offensive"]):
+                return True
+        return False
+
+    def short_defs(self):
+        ret = dict()
+        for entry in self.json:
+            ret[entry["meta"]["id"]] = (entry["fl"], entry["shortdef"])
+        return ret
+
+    # Select the definition entries for whom at least one stem is in the comment
+    def matches(self, text):
+        matches = dict()
+        if (len(self.json) == 1):
+            entry = self.json[0]
+            matches[entry["meta"]["id"]] = entry
+            return matches
+        else:
+            for entry in self.json:
+                stems = entry["meta"]["stems"]
+                for stem in stems:
+                    if stem in text:
+                        matches[entry["meta"]["id"]] = entry
+                        break
+        pass
+
+    #filter down for the matches who have the "longest match"
+    def best_matches(self, matches, text):
+        #it's more efficient to create a list structure, then sort it
+        #but N is so small for this, it's better to just do it piece by piece
+
+        #first, find the longest match length
+        maxMatch = ""
+        for head, stems in matches:
+            for stem in stems:
+                if len(stem) > len(maxMatch) and stem in text:
+                    maxMatch = stem
+        
+        # Now get all of the entries with stems in the text which meet that length
+        ret = dict()
+        for meta_id, entry in matches:
+            for stem in entry["meta"]["stems"]:
+                if (len(stem) == len(maxMatch) and stem in text):
+                    ret[head] = entry
+                    break
+
+        return ret
 
 
 class ThesaurusResult:
