@@ -14,6 +14,7 @@ from functools import reduce
 import glob
 import logging
 from webster import *
+from reddit_fmt import make_response
 
 blacklist = [
     "anime",
@@ -48,6 +49,7 @@ blacklist = [
     "pigs",
     "politicaldiscussion",
     "politics",
+    "pokemontrades",
     "programmingcirclejerk",
     "raerthdev",
     "rants",
@@ -60,6 +62,7 @@ blacklist = [
     "sociopath",
     "suicidewatch",
     "talesfromtechsupport",
+    "TeenAmIUgly"
     "torrent",
     "torrents",
     "trackers",
@@ -76,6 +79,7 @@ blacklist = [
     "historicalwhatif",
     "lolgrindr",
     "malifaux",
+    "MechanicalKeyboards",
     "nfl",
     "toonami",
     "trumpet",
@@ -223,7 +227,7 @@ def hot_all_word_map(reddit, lim, post_score, post_hours, comm_score, comm_hours
     bags = list()
     for sub_name in hot_subs.keys():
         sub = reddit.subreddit(sub_name)
-        if(not sub.over18):
+        if(not sub.over18 and sub_name not in blacklist):
             print("Working on: " + sub_name)
             bags.extend(hot_sub_comment_bags(sub, lim,
                                              post_score, post_hours, comm_score, comm_hours))
@@ -307,7 +311,7 @@ logger.addHandler(handler)
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, 200, 5, 1, 1, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, None, 5, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 reddit_stems = {stem(word): word for word in reddit_set}
 # some positive tests. These words should always appear in the output list.
@@ -365,10 +369,12 @@ c = WebsterClient()
 for real_word in postfilter_words:
     print("Working on: " + real_word)
     r = c.define(real_word)
+    if (not r.exists()):
+        continue
     if(r.offensive()):
         continue  # obviously don't define offensive words
 
-    # get rid of phrasal variants
+    # do all kinds of magic to grab similar words
     real_variants = r.variants()
 
     print("Checking variant frequency:" + str(real_variants))
@@ -380,30 +386,42 @@ for real_word in postfilter_words:
             print("found variant in frequencies: " +
                   variant + " : " + str(variant_frequency))
             real_freq += variant_frequency
-        else:
-            real_freq += 12711  # lowest freq in the list
-        
-    final_results.append((real_word, real_freq, r.json[0]["shortdef"][0]))
+
+    body = reddit_word_to_comment[real_word][0].body
+    matches = r.matches(body)
+    best_matches = r.best_matches(matches, body)
+
+    no_names_best_matches = dict()
+    for meta_id, entry in best_matches.items():
+        if ("fl" not in entry or "name" in entry["fl"] or len(entry["shortdef"]) == 0):
+            continue
+        no_names_best_matches[meta_id] = entry
+    
+    if(len(no_names_best_matches) != 0):
+        final_results.append((real_word, real_freq, no_names_best_matches))
 
 # This is what all that work was for: the rarest word, associated with the best comment
 final_results = sorted(final_results, key=lambda x: x[1])
 
 while (True):
     count = 0
-    for final_tup in final_results:
-        print(str(count) + ". " + str(final_tup) + " || Associated comment ID: " +
-            str(reddit_word_to_comment[final_tup[0]]))
+    for final_trip in final_results:
+        print(str(count) + ". " + str(final_trip[0] + " || Freq: " + str(final_trip[1])))
+        final_word = final_trip[0]
+        final_entries = final_trip[2]
+        final_comment = reddit_word_to_comment[final_word][0]
+        test_comment = make_response(final_word, final_comment, final_entries)
+        f = open(final_word + ".txt", "w+")
+        f.write(test_comment)
+        f.close()
         count += 1
 
     choice = int(input("Pick a word to define (0-" + str(count - 1) + ": "))
     chosen_word = final_results[choice][0]
-    chosen_word_def = final_results[choice][2]
+    chosen_entries = final_results[choice][2]
     chosen_comment = reddit_word_to_comment[chosen_word][0]
-    poster = chosen_comment.author.name
 
-    comment = "Hey /u/" + poster + "! **" + chosen_word + "** is a great word!\n\n" + "It means:\n\n**" + \
-        chosen_word_def + \
-        "**\n\n(according to Merriam-Webster).\n\n🤖 I'm new; feel free to provide feedback!"
+    comment = make_response(chosen_word, chosen_comment, chosen_entries)
     print(comment)
 
     reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,

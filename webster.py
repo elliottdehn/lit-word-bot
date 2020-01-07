@@ -123,10 +123,10 @@ class DictionaryResult:
             for entry in self.json:
                 stems = entry["meta"]["stems"]
                 for stem in stems:
-                    if stem in text:
+                    if stem in text.lower():
                         matches[entry["meta"]["id"]] = entry
                         break
-        pass
+        return matches
 
     #filter down for the matches who have the "longest match"
     def best_matches(self, matches, text):
@@ -135,17 +135,17 @@ class DictionaryResult:
 
         #first, find the longest match length
         maxMatch = ""
-        for head, stems in matches:
-            for stem in stems:
-                if len(stem) > len(maxMatch) and stem in text:
+        for meta_id, entry in matches.items():
+            for stem in entry["meta"]["stems"]:
+                if len(stem) > len(maxMatch) and stem in text.lower():
                     maxMatch = stem
         
         # Now get all of the entries with stems in the text which meet that length
         ret = dict()
-        for meta_id, entry in matches:
+        for meta_id, entry in matches.items():
             for stem in entry["meta"]["stems"]:
-                if (len(stem) == len(maxMatch) and stem in text):
-                    ret[head] = entry
+                if (len(stem) == len(maxMatch) and stem in text.lower()):
+                    ret[meta_id] = entry
                     break
 
         return ret

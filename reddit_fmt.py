@@ -136,16 +136,14 @@ def definition(word, pos, defs):
         p(sj(it("(" + pos + ")"), designate_w(word))) + \
         n_list([sense(sn) for sn in defs])
 
+def make_response(word, comment, entries):
+    resp = greet(comment.author.name, word) + rule()
+    for meta_id, entry in entries.items():
+        resp = resp + definition(entry["hwi"]["hw"], entry["fl"], [entry["shortdef"]])
+        resp = resp + rule()
+    
+    f = open("out.txt", "w+")
+    f.write(resp)
+    f.close()
 
-out = \
-    greet("peterpants", "squib") + \
-    rule() + \
-    definition("squib", "verb", [["a short humorous or satiric writing or speech", "a short news item"], ["a small firecracker", "a broken firecracker in which the powder burns with a fizz"], ["a small electric or pyrotechnic device used to ignite a charge"]]) + \
-    rule() + \
-    definition("squib", "noun", [["to speak, write, or publish squibs"], ["to fire a squib"], ["to utter in an offhand manner", "to make squibs against : LAMPOON"], [
-               "to shoot off : FIRE"], ["to kick (a football) on a kickoff so that it bounces along the ground"]])
-
-
-f = open("out.txt", "w+")
-f.write(out)
-f.close()
+    return resp
