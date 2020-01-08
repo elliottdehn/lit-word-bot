@@ -311,7 +311,7 @@ logger.addHandler(handler)
 
 reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                         user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
-reddit_word_to_comment = hot_all_word_map(reddit_ro, None, 5, 1, 1, 1)
+reddit_word_to_comment = hot_all_word_map(reddit_ro, 400, 5, 1, 1, 1)
 reddit_set = set(reddit_word_to_comment.keys())
 reddit_stems = {stem(word): word for word in reddit_set}
 # some positive tests. These words should always appear in the output list.
