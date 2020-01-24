@@ -7,33 +7,18 @@ import json
 class WebsterClient:
 
     d_key = secrets.webster_dict_key
-    t_key = secrets.webster_thes_key
 
     dictionary_base = "https://www.dictionaryapi.com/api/v3/references/collegiate/json"
-    thesaurus_base = "https://www.dictionaryapi.com/api/v3/references/thesaurus/json"
 
     def __init__(self):
         self.d_cache = dict()
         self.t_cache = dict()
-
-    def define(self, word, fetch=True):
-        if(word not in self.d_cache and fetch):
-            self.d_cache[word] = requests.get(
-                self.dictionary_base + "/" + word + "?key=" + self.d_key).json()
-        elif(word not in self.d_cache and not fetch):
-            return None
-
+    
+    @lru_cache(maxsize=None)
+    def define(self, word):
+        self.d_cache[word] = \
+        requests.get(self.dictionary_base + "/" + word + "?key=" + self.d_key).json()
         return DictionaryResult(word, self.d_cache[word])
-
-    def thesaurus(self, word, fetch=True):
-        if(word not in self.t_cache and fetch):
-            self.t_cache[word] = requests.get(
-                self.thesaurus_base + "/" + word + "?key=" + self.t_key).json()
-        elif(word not in self.t_cache and not fetch):
-            return None
-
-        return ThesaurusResult(self.t_cache[word])
-
 
 class DictionaryResult:
 
@@ -149,11 +134,3 @@ class DictionaryResult:
                     break
 
         return ret
-
-
-class ThesaurusResult:
-
-    def __init__(self, json):
-        self.json = json
-
-    def variants(self): pass

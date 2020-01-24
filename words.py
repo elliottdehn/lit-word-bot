@@ -13,7 +13,7 @@ def words_from_file(file_name):
     f = open(file_name)
     words = f.read()
     words = words.replace("\n", " ")
-    return set(words.strip().split())
+    return set(words.lower().strip().split())
 
 def __reduce_map__(m1, init, acc_f, key_f=lambda k: k):
     ret = dict()
@@ -56,6 +56,12 @@ def corpus_word_freqs():
 
 def offensive_words():
     return words_from_file("./offensive/offensive.txt")
+
+def scrabble_dictionary():
+    return words_from_file("./dictionary/scrabble.txt")
+
+def prefixes():
+    return words_from_file("./dictionary/prefixes.txt")
 
 # Used pre-dictionary API call
 def stem_freqs(word_freqs):
