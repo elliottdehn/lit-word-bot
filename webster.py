@@ -2,23 +2,18 @@ import requests
 import secrets as secrets
 import re
 import json
-
+from functools import lru_cache
 
 class WebsterClient:
 
     d_key = secrets.webster_dict_key
 
     dictionary_base = "https://www.dictionaryapi.com/api/v3/references/collegiate/json"
-
-    def __init__(self):
-        self.d_cache = dict()
-        self.t_cache = dict()
     
     @lru_cache(maxsize=None)
     def define(self, word):
-        self.d_cache[word] = \
-        requests.get(self.dictionary_base + "/" + word + "?key=" + self.d_key).json()
-        return DictionaryResult(word, self.d_cache[word])
+        r = requests.get(self.dictionary_base + "/" + word + "?key=" + self.d_key).json()
+        return DictionaryResult(word, r)
 
 class DictionaryResult:
 

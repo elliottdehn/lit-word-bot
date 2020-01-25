@@ -4,6 +4,7 @@ import criteria as it_meets
 import praw
 import re
 import secrets
+from functools import lru_cache
 from praw.models.reddit.more import MoreComments
 
 
@@ -35,7 +36,7 @@ def __feed(sub, q):
      if it_meets.subreddit_criteria(new_post.subreddit)
      for hot_post in new_post.subreddit.hot(limit=None)
      if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3)
-     for comment in hot_post.comments if not isinstance(comment, MoreComments)
+     for comment in get_post_comments(hot_post)
      if it_meets.comment_criteria(comment, score=2, hours=2)
      for word in __bag(comment.body)]
 
@@ -49,3 +50,7 @@ def obtain(buffer=0):
         target=__feed, args=(sub, all_new_queue,), daemon=True)
     all_new_thread.start()
     return iter(all_new_queue.get, None)
+
+@lru_cache(maxsize=300)
+def get_post_comments(post):
+    return filter(lambda c: not isinstance(c, MoreComments), post.comments)
