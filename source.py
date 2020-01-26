@@ -5,8 +5,9 @@ import praw
 import re
 import secrets
 from functools import lru_cache
+from itertools import chain
 from praw.models.reddit.more import MoreComments
-
+from expiringdict import ExpiringDict
 
 def __multirepl_list(repl_list, repl, tbr):
     if(len(repl_list) > 1):
@@ -31,14 +32,18 @@ def __bag(body):
 
 
 def __feed(sub, q):
-    [q.put((word, comment))
-     for new_post in sub.stream.submissions()
-     if it_meets.subreddit_criteria(new_post.subreddit)
-     for hot_post in new_post.subreddit.hot(limit=None)
-     if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3)
-     for comment in get_post_comments(hot_post)
-     if it_meets.comment_criteria(comment, score=2, hours=2)
-     for word in __bag(comment.body)]
+    sub_cache = ExpiringDict(max_len=100000, max_age_seconds=300)
+    post_cache = ExpiringDict(max_len=100000, max_age_seconds=300)
+    for new_post in sub.stream.submissions():
+        if it_meets.subreddit_criteria(new_post.subreddit) and new_post.subreddit.id not in sub_cache:
+            sub_cache[new_post.subreddit.id] = True
+            for hot_post in chain(new_post.subreddit.hot(limit=25), new_post.subreddit.new(limit=25)):
+                if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3) and hot_post.id not in post_cache:
+                    post_cache[hot_post.id] = True
+                    [q.put((word, comment))
+                    for comment in get_post_comments(hot_post)
+                    if it_meets.comment_criteria(comment, score=2, hours=2)
+                    for word in __bag(comment.body)]
 
 
 def obtain(buffer=0):
@@ -46,11 +51,9 @@ def obtain(buffer=0):
                             user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
     sub = reddit_ro.subreddit("all")
     all_new_queue = queue.Queue(maxsize=buffer)
-    all_new_thread = threading.Thread(
-        target=__feed, args=(sub, all_new_queue,), daemon=True)
+    all_new_thread = threading.Thread(target=__feed, args=(sub, all_new_queue,), daemon=True)
     all_new_thread.start()
     return iter(all_new_queue.get, None)
 
-@lru_cache(maxsize=300)
 def get_post_comments(post):
     return filter(lambda c: not isinstance(c, MoreComments), post.comments)

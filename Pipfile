@@ -12,6 +12,7 @@ nltk = "*"
 requests = "*"
 pyrsistent = "*"
 more-itertools = "*"
+expiringdict = "*"
 
 [requires]
 python_version = "3.8"

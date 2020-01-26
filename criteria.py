@@ -6,6 +6,7 @@ blacklist = [
     "askhistorians",
     "askscience",
     "askreddit",
+    "AskTeenGirls"
     "aww",
     "chicagosuburbs",
     "cosplay",
@@ -42,6 +43,7 @@ blacklist = [
     "science",
     "seiko",
     "shoplifting",
+    "shortcels",
     "sketches",
     "sociopath",
     "suicidewatch",

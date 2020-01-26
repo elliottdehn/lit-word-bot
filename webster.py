@@ -22,7 +22,35 @@ class DictionaryResult:
         self.word = word
 
     def exists(self):
-        return len(self.json) != 0 and type(self.json[0]) is not str
+        return \
+            len(self.json) != 0 \
+            and type(self.json[0]) is not str
+
+    def is_name(self):
+        for entry in self.json:
+            if "fl" not in entry or "name" in entry["fl"]:
+                return True
+        return False
+
+    # for words like "noontime", "hellbent", "douchebag"... while keeping "carboy"
+    def is_simple_mashup(self, vocab):
+        subwords_in_definitions = \
+        [subword
+        for entry in self.json
+        for headword in [entry["hwi"]["hw"]] if headword.count("*") == 1
+        for head_subword in headword.split("*") if head_subword in vocab
+        for definition in entry["def"]
+        for sense_set in definition["sseq"]
+        for sense in sense_set if sense[0] == "sense" and "dt" in sense[1]
+        for dt in sense[1]["dt"]
+        for variant in entry["meta"]["stems"] if " " in stem_subword or "-" in stem_subword
+        for variant_subword in re.findall(r"[\w']+", variant)
+        for part in dt if part[0] == "text" and (head_subword in part[1] and variant_subword in part[1])]
+
+        if (len(subwords_in_definitions) > 0):
+            return True
+        else:
+            return False
 
     #For frequency tallying purposes
     def variants(self, phrases=False):
@@ -110,9 +138,6 @@ class DictionaryResult:
 
     #filter down for the matches who have the "longest match"
     def best_matches(self, matches, text):
-        #it's more efficient to create a list structure, then sort it
-        #but N is so small for this, it's better to just do it piece by piece
-
         #first, find the longest match length
         maxMatch = ""
         for meta_id, entry in matches.items():

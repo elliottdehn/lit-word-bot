@@ -32,20 +32,20 @@ def stem(word):
 def depre_s(s, prefix):
     return s[len(prefix) :] if s.startswith(prefix) else s
 
+def desuf_s(s, suffix):
+    return s[:len(s)-len(suffix)] if s.endswith(suffix) else s
+
 def depre_w(w, vocab, prefix):
     return depre_s(w, prefix) if depre_s(w, prefix) in vocab else w
+
+def desuf_w(w, vocab, suffix):
+    return desuf_s(w, suffix) if desuf_s(w, suffix) in vocab else w
 
 def depre_cloud(w, vocab, prefixes):
     return {depre_w(w, vocab, pre) for pre in prefixes}
 
-def drop_prefix(vocab, prefix):
-    return set(map(lambda w: depre_w(w, vocab, prefix), vocab))
-
-def drop_prefixes(vocab, prefixes):
-    return reduce(
-        lambda acc, elm: acc.intersection(elm),
-        [drop_prefix(vocab, pre) for pre in prefixes],
-        set(vocab))
+def desuf_cloud(w, vocab, suffixes):
+    return {desuf_w(w, vocab, suf) for suf in suffixes}
 
 # Use post-dictionary API call
 def all_word_freqs():
@@ -62,6 +62,9 @@ def scrabble_dictionary():
 
 def prefixes():
     return words_from_file("./dictionary/prefixes.txt")
+
+def suffixes():
+    return words_from_file("./dictionary/suffixes.txt")
 
 # Used pre-dictionary API call
 def stem_freqs(word_freqs):
