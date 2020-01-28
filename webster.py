@@ -34,23 +34,19 @@ class DictionaryResult:
 
     # for words like "noontime", "hellbent", "douchebag"... while keeping "carboy"
     def is_simple_mashup(self, vocab):
-        subwords_in_definitions = \
-        [subword
-        for entry in self.json
-        for headword in [entry["hwi"]["hw"]] if headword.count("*") == 1
-        for head_subword in headword.split("*") if head_subword in vocab
-        for definition in entry["def"]
-        for sense_set in definition["sseq"]
-        for sense in sense_set if sense[0] == "sense" and "dt" in sense[1]
-        for dt in sense[1]["dt"]
-        for variant in entry["meta"]["stems"] if " " in stem_subword or "-" in stem_subword
-        for variant_subword in re.findall(r"[\w']+", variant)
-        for part in dt if part[0] == "text" and (head_subword in part[1] and variant_subword in part[1])]
+        for entry in self.json:
+            hws = re.findall(r"[\w']+", entry["hwi"]["hw"])
+            if len(hws) == 2:
+                left, right = hws
+                if left in vocab and right in vocab:
+                    for shortdef in entry["shortdef"]:
+                        if left in shortdef or right in shortdef:
+                            return True
+        return False
 
-        if (len(subwords_in_definitions) > 0):
-            return True
-        else:
-            return False
+                
+
+
 
     #For frequency tallying purposes
     def variants(self, phrases=False):

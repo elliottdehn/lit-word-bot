@@ -2,6 +2,7 @@
 from source import obtain
 import secrets
 import praw
+from reddit_fmt import *
 from webster import WebsterClient
 from words import *
 from queue import Queue
@@ -31,21 +32,32 @@ all_stem = \
 pres = prefixes()
 sufs = suffixes()
 
+outComments = open("comments.txt", "a+")
+outWords = open("words.txt", "a+")
+
+done_comments = words_from_file("./comments.txt")
+done_words = words_from_file("./words.txt")
+
 infinite_feed = filter(
-    lambda w_c: len(w_c[0]) > 3 \
+    lambda w_c:
+        len(w_c[0]) > 3 \
         and w_c[0] in all_vocab \
         and stem(w_c[0]) in all_stem \
-        and stem_frequencies[stem(w_c[0])] < 200000,
+        and stem_frequencies[stem(w_c[0])] < 60000
+        and w_c[0] not in done_words \
+        and w_c[1].id not in done_comments \
+        and w_c[1].author.name != "lit_word_bot",
     obtain(buffer=50))
 
 c = WebsterClient()
 for w, comment in infinite_feed:
+    
     print(w)
     variant_cloud = predictionary_variants(w)
     print(variant_cloud)
     rarity = sum([word_frequencies[variant] for variant in variant_cloud])
 
-    if (rarity > 80000):
+    if (rarity > 60000):
         continue
 
     print(w + " might be rare! " + str(rarity))
@@ -65,8 +77,38 @@ for w, comment in infinite_feed:
     real_freq += sum([word_frequencies[variant] for variant in real_variants if variant in word_frequencies])
     print(w + " real frequency: " + str(real_freq))
 
-    if (real_freq < 60000 \
-        and not definition.is_name() \
-        and not definition.is_simple_mashup(all_vocab)):
-            print(w + " qualified to be defined!")
+    if (real_freq > 60000 \
+        or definition.is_name() \
+        or definition.is_simple_mashup(all_vocab)):
+            continue
     
+    entries = definition.matches(comment.body)
+    best_entries = definition.best_matches(entries, comment.body)
+    if (len(best_entries) != 0):
+        
+        bot_reply = make_response(w, comment, best_entries)
+        print(bot_reply)
+
+        done_comments.add(comment.id)
+        outComments.write(comment.id)
+        outComments.write("\n")
+
+        for v in real_variants:
+            done_words.add(v)
+            outWords.write(v)
+            outWords.write("\n")
+
+        reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
+                        user_agent='com.local.litwordbot:Python 3.8:v0.1 (by /u/lit_word_bot)',
+                        username=secrets.reddit_username,
+                        password=secrets.reddit_password)
+
+        to_be_replied = reddit_rw.comment(comment.id)
+        to_be_replied.reply(bot_reply)
+        to_be_replied.upvote()
+
+outComments.close()
+outWords.close()
+
+
+
