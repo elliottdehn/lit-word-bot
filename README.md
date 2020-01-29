@@ -1,5 +1,7 @@
 # lit-word-bot
-This is a bot which finds rare, colorful words in Reddit comments and defines them for readers. It relies on heuristics to make a good guess as to whether or not a word is worth defining. While it's not 100% perfect, readers seed to mostly enjoy the comments it does make, and the bot's comment can be easily deleted if it's not desired.
+This is a bot which finds rare, colorful words in Reddit comments and defines them for readers.
+
+It relies on heuristics to make a good guess as to whether or not a word is worth defining. While it's not 100% perfect, readers seem to enjoy the comments. Any given comment can be easily deleted by readers if it's not desired.
 
 Warning: ugly code ahead. This project started as a way for me to learn Python but became quite a bit more substantial as I got into the problem. 
 
