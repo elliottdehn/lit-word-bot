@@ -1,4 +1,3 @@
-from nltk.stem import *
 from functools import reduce
 
 def __read_data__(file_name, delim):
@@ -14,20 +13,6 @@ def words_from_file(file_name):
     words = f.read()
     words = words.replace("\n", " ")
     return set(words.lower().strip().split())
-
-def __reduce_map__(m1, init, acc_f, key_f=lambda k: k):
-    ret = dict()
-    for key, value in m1.items():
-        new_key = key_f(key)
-        if new_key in ret:
-            ret[new_key] = acc_f(ret[new_key], value)
-        else:
-            ret[new_key] = acc_f(init, value)
-    return ret
-
-def stem(word):
-    stemmer = PorterStemmer()
-    return stemmer.stem(word)
 
 def depre_s(s, prefix):
     return s[len(prefix) :] if s.startswith(prefix) else s
@@ -65,7 +50,3 @@ def prefixes():
 
 def suffixes():
     return words_from_file("./dictionary/suffixes.txt")
-
-# Used pre-dictionary API call
-def stem_freqs(word_freqs):
-    return __reduce_map__(word_freqs, 0, lambda acc, v: acc + v, stem)
