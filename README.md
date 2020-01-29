@@ -9,7 +9,7 @@ This project started as a way for me to learn Python but became quite a bit more
 
 If you'd like to mess around with it, you have a few options:
 
-- Get some API keys for Merriam-Webster's API (just the collegiate dictionary) from here: https://dictionaryapi.com/ and/our Reddit API keys from here: https://www.reddit.com/prefs/apps/. Add them to secrets-template.py and rename it to secrets.py. Adjust the code as-appropriate and mess around.
+- Get some API keys for Merriam-Webster's API (just the collegiate dictionary) from here: https://dictionaryapi.com/ and/or Reddit API keys from here: https://www.reddit.com/prefs/apps/. Add them to secrets-template.py and rename it to secrets.py. Adjust the code as-appropriate and mess around.
 
 - Modify the code to eliminate the API calls and mess around as such. You're free to do whatever you want.
 
