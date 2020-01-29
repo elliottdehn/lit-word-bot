@@ -36,8 +36,8 @@ def link(desc, url):
     return "[" + desc + "]" + "(" + url + ")"
 
 
-def newline(l):
-    return l + "    "  # four spaces
+def newline():
+    return "    "  # four spaces
 
 # Paragraphs in Lists and Nested lists using a combination
 # of ordered and unordered lists are no longer supported.
@@ -136,10 +136,17 @@ def definition(word, pos, defs):
         p(sj(it("(" + pos + ")"), designate_w(word))) + \
         n_list([sense(sn) for sn in defs])
 
+def disclaimer():
+    return \
+        ss("(Downvote this if I was a bad bot! I will immediately delete it.)") \
+        + newline() \
+        + ss(link("github", "https://github.com/elliottdehn/lit-word-bot"))
+
+
 def make_response(word, comment, entries):
     resp = greet(comment.author.name, word) + rule()
     for meta_id, entry in entries.items():
         resp = resp + definition(entry["hwi"]["hw"], entry["fl"], [entry["shortdef"]])
         resp = resp + rule()
-
+        resp = resp + disclaimer()
     return resp

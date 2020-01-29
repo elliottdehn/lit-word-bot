@@ -6,6 +6,7 @@ from reddit_fmt import *
 from webster import WebsterClient
 from words import *
 from queue import Queue
+from praw.exceptions import APIException
 import time
 
 def predictionary_variants(w):
@@ -48,6 +49,7 @@ infinite_feed = filter(
         and w_c[0] in all_vocab \
         and w_c[0] not in done_words \
         and w_c[1].id not in done_comments \
+        and w_c[1].author != None \
         and w_c[1].author.name != None \
         and w_c[1].author.name != "lit_word_bot",
     obtain())
@@ -59,7 +61,9 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
                 username=secrets.reddit_username,
                 password=secrets.reddit_password)
 
+count = 0
 for w, comment in infinite_feed:
+    count += 1
     variant_cloud = predictionary_variants(w)
 
     for v in variant_cloud:
@@ -67,6 +71,15 @@ for w, comment in infinite_feed:
 
     rarity = sum([6000 for variant in variant_cloud if variant not in word_frequencies])
     rarity += sum([word_frequencies[variant] for variant in variant_cloud if variant in word_frequencies])
+
+    # delete any downvoted comments of ours
+    if (count % 100 == 0):
+        print("Checking deletes...")
+        for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=25):
+            print("Checking comment, score is " + str(bot_comment.score))
+            if (bot_comment.score <= 0):
+                print("Deleting comment...")
+                bot_comment.delete()
 
     if (rarity > 60000):
         continue
@@ -95,26 +108,36 @@ for w, comment in infinite_feed:
     if (real_freq > 60000 \
         or definition.is_name() \
         or definition.is_simple_mashup(all_vocab)):
+            print("Did not qualify")
             continue
     
     entries = definition.matches(comment.body)
     best_entries = definition.best_matches(entries, comment.body)
 
     if (len(best_entries) == 0):
+        print("No matches for any entries: " + comment.body)
         continue
 
     to_be_replied = reddit_rw.comment(comment.id)
     bot_reply = make_response(w, comment, best_entries)
     print(bot_reply)
 
+    forbade = False
     while True:
         try:
             # crude way to deal with comment rate limiting
             to_be_replied.reply(bot_reply)
             to_be_replied.upvote()
             break
-        except:
+        except APIException:
+            print("retrying...")
             time.sleep(30)
+        except:
+            forbade = True
+            break
+    
+    if (forbade):
+        continue
 
     done_comments.add(comment.id)
     outComments.write(comment.id)
@@ -123,11 +146,7 @@ for w, comment in infinite_feed:
     for v in real_variants:
         outWords.write(v)
         outWords.write("\n")
-    
-    # delete any downvoted comments of ours
-    for comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=25):
-        if (comment.score <= 0):
-            comment.delete()
+
 
 outComments.close()
 outWords.close()
