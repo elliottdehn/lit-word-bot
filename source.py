@@ -4,7 +4,7 @@ import criteria as it_meets
 import praw
 import re
 import secrets
-from functools import lru_cache
+from functools import lru_cache, partial
 from itertools import chain
 from praw.models.reddit.more import MoreComments
 from expiringdict import ExpiringDict
@@ -53,7 +53,7 @@ def obtain(buffer=0):
     all_new_queue = queue.Queue(maxsize=buffer)
     all_new_thread = threading.Thread(target=__feed, args=(sub, all_new_queue,), daemon=True)
     all_new_thread.start()
-    return iter(all_new_queue.get, None)
+    return iter(partial(all_new_queue.get, block=True, timeout=None), None)
 
 def get_post_comments(post):
     return filter(lambda c: not isinstance(c, MoreComments), post.comments)

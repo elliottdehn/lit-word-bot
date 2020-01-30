@@ -63,7 +63,13 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
 
 count = 0
 for w, comment in infinite_feed:
+    if (count % 10 == 0):
+        print(w)
     count += 1
+    done_words.add(w)
+    if (w not in all_vocab):
+        continue
+
     variant_cloud = predictionary_variants(w)
 
     for v in variant_cloud:
