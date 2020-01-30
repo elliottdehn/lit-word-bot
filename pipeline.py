@@ -50,9 +50,8 @@ infinite_feed = filter(
         and w_c[0] not in done_words \
         and w_c[1].id not in done_comments \
         and w_c[1].author != None \
-        and w_c[1].author.name != None \
-        and w_c[1].author.name != "lit_word_bot",
-    obtain())
+        and str(w_c[1].author) != "lit_word_bot",
+    obtain(500))
 
 c = WebsterClient()
 
@@ -67,16 +66,6 @@ for w, comment in infinite_feed:
         print(w)
     count += 1
     done_words.add(w)
-    if (w not in all_vocab):
-        continue
-
-    variant_cloud = predictionary_variants(w)
-
-    for v in variant_cloud:
-        done_words.add(v)
-
-    rarity = sum([6000 for variant in variant_cloud if variant not in word_frequencies])
-    rarity += sum([word_frequencies[variant] for variant in variant_cloud if variant in word_frequencies])
 
     # delete any downvoted comments of ours
     if (count % 100 == 0):
@@ -86,6 +75,17 @@ for w, comment in infinite_feed:
             if (bot_comment.score <= 0):
                 print("Deleting comment...")
                 bot_comment.delete()
+
+    if (w in word_frequencies and word_frequencies[w] > 60000):
+        continue
+
+    variant_cloud = predictionary_variants(w)
+
+    for v in variant_cloud:
+        done_words.add(v)
+
+    rarity = sum([6000 for variant in variant_cloud if variant not in word_frequencies])
+    rarity += sum([word_frequencies[variant] for variant in variant_cloud if variant in word_frequencies])
 
     if (rarity > 60000):
         continue
@@ -140,6 +140,7 @@ for w, comment in infinite_feed:
             time.sleep(30)
         except:
             forbade = True
+            print("Failed for some reason...")
             break
     
     if (forbade):

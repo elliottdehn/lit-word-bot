@@ -85,7 +85,7 @@ def inPastHours(ts, hs):
 
 
 def subreddit_criteria(sub):
-    res = sub.display_name not in blacklist and not sub.over18
+    res = str(sub) not in blacklist and not sub.over18
     return res
 
 

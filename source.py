@@ -50,7 +50,7 @@ def obtain(buffer=0):
     reddit_ro = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secrets.reddit_client_secret,
                             user_agent='com.local.litwords:Python 3.8:v1.0 (by /u/lit_word_x)')
     sub = reddit_ro.subreddit("all")
-    all_new_queue = queue.Queue(maxsize=buffer)
+    all_new_queue = queue.LifoQueue(maxsize=buffer)
     all_new_thread = threading.Thread(target=__feed, args=(sub, all_new_queue,), daemon=True)
     all_new_thread.start()
     return iter(partial(all_new_queue.get, block=True, timeout=None), None)

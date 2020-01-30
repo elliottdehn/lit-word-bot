@@ -148,5 +148,5 @@ def make_response(word, comment, entries):
     for meta_id, entry in entries.items():
         resp = resp + definition(entry["hwi"]["hw"], entry["fl"], [entry["shortdef"]])
         resp = resp + rule()
-        resp = resp + disclaimer()
+    resp = resp + disclaimer()
     return resp
