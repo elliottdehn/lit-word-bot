@@ -34,16 +34,20 @@ def __bag(body):
 def __feed(sub, q):
     sub_cache = ExpiringDict(max_len=100000, max_age_seconds=300)
     post_cache = ExpiringDict(max_len=100000, max_age_seconds=300)
-    for new_post in sub.stream.submissions():
-        if it_meets.subreddit_criteria(new_post.subreddit) and new_post.subreddit.id not in sub_cache:
-            sub_cache[new_post.subreddit.id] = True
-            for hot_post in chain(new_post.subreddit.hot(limit=25), new_post.subreddit.new(limit=25)):
-                if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3) and hot_post.id not in post_cache:
-                    post_cache[hot_post.id] = True
-                    [q.put((word, comment))
-                    for comment in get_post_comments(hot_post)
-                    if it_meets.comment_criteria(comment, score=2, hours=2)
-                    for word in __bag(comment.body)]
+    while (True):
+        try:
+            for new_post in sub.stream.submissions():
+                if it_meets.subreddit_criteria(new_post.subreddit) and new_post.subreddit.id not in sub_cache:
+                    sub_cache[new_post.subreddit.id] = True
+                    for hot_post in chain(new_post.subreddit.hot(limit=25), new_post.subreddit.new(limit=25)):
+                        if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3) and hot_post.id not in post_cache:
+                            post_cache[hot_post.id] = True
+                            [q.put((word, comment))
+                            for comment in get_post_comments(hot_post)
+                            if it_meets.comment_criteria(comment, score=2, hours=2)
+                            for word in __bag(comment.body)]
+        except:
+            continue
 
 
 def obtain(buffer=0):
