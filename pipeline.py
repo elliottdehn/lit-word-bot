@@ -7,7 +7,7 @@ from webster import WebsterClient
 from words import *
 from queue import Queue
 from praw.exceptions import APIException
-import time
+import time, threading
 
 def predictionary_variants(w):
     depre_wc = depre_cloud(w, all_vocab, pres)
@@ -60,6 +60,18 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
                 username=secrets.reddit_username,
                 password=secrets.reddit_password)
 
+def delete_comments(minimum_score=1):
+    # delete any downvoted comments of ours
+    print("Checking deletes...")
+    for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=25):
+        print("Checking comment, score is " + str(bot_comment.score))
+        if (bot_comment.score < minimum_score):
+            print("Deleting comment...")
+            bot_comment.delete()
+    threading.Timer(30, delete_comments).start()
+
+delete_comments()
+
 count = 0
 for w, comment in infinite_feed:
     if (count % 10 == 0):
@@ -67,14 +79,7 @@ for w, comment in infinite_feed:
     count += 1
     done_words.add(w)
 
-    # delete any downvoted comments of ours
-    if (count % 100 == 0):
-        print("Checking deletes...")
-        for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=25):
-            print("Checking comment, score is " + str(bot_comment.score))
-            if (bot_comment.score <= 0):
-                print("Deleting comment...")
-                bot_comment.delete()
+
 
     if (w in word_frequencies and word_frequencies[w] > 60000):
         continue
@@ -134,6 +139,7 @@ for w, comment in infinite_feed:
             # crude way to deal with comment rate limiting
             to_be_replied.reply(bot_reply)
             to_be_replied.upvote()
+            to_be_replied.submission.upvote()
             break
         except APIException:
             print("retrying...")

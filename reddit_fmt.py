@@ -140,7 +140,9 @@ def disclaimer():
     return \
         ss("(Downvote this if I was a bad bot! I will immediately delete it.)") \
         + newline() \
-        + ss(link("github", "https://github.com/elliottdehn/lit-word-bot"))
+        + ss(link("github", "https://github.com/elliottdehn/lit-word-bot")) \
+        + newline() \
+        + ss(link("top", "https://www.reddit.com/user/lit_word_bot/?sort=top"))
 
 
 def make_response(word, comment, entries):

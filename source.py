@@ -37,16 +37,21 @@ def __feed(sub, q):
     while (True):
         try:
             for new_post in sub.stream.submissions():
+                print("Checking submisson...")
                 if it_meets.subreddit_criteria(new_post.subreddit) and new_post.subreddit.id not in sub_cache:
+                    print("Checking subreddit....")
                     sub_cache[new_post.subreddit.id] = True
                     for hot_post in chain(new_post.subreddit.hot(limit=25), new_post.subreddit.new(limit=25)):
-                        if it_meets.submission_criteria(hot_post, comments=2, score=5, hours=3) and hot_post.id not in post_cache:
+                        print("checking post...")
+                        if it_meets.submission_criteria(hot_post, comments=1, score=1, hours=4) and hot_post.id not in post_cache:
                             post_cache[hot_post.id] = True
+                            print("crawling post...")
                             [q.put((word, comment))
                             for comment in get_post_comments(hot_post)
-                            if it_meets.comment_criteria(comment, score=2, hours=2)
+                            if it_meets.comment_criteria(comment, score=1, hours=3)
                             for word in __bag(comment.body)]
         except:
+            print("exception in source thread")
             continue
 
 
