@@ -43,6 +43,9 @@ outWords = open("words.txt", "a+")
 done_comments = words_from_file("./comments.txt")
 done_words = words_from_file("./words.txt")
 
+outComments.close()
+outWords.close()
+
 infinite_feed = filter(
     lambda w_c:
         len(w_c[0]) > 3 \
@@ -72,15 +75,8 @@ def delete_comments(minimum_score=1):
 
 delete_comments()
 
-count = 0
 for w, comment in infinite_feed:
-    if (count % 10 == 0):
-        print(w)
-    count += 1
     done_words.add(w)
-
-
-
     if (w in word_frequencies and word_frequencies[w] > 60000):
         continue
 
@@ -152,6 +148,9 @@ for w, comment in infinite_feed:
     if (forbade):
         continue
 
+    outComments = open("comments.txt", "a+")
+    outWords = open("words.txt", "a+")
+
     done_comments.add(comment.id)
     outComments.write(comment.id)
     outComments.write("\n")
@@ -159,10 +158,9 @@ for w, comment in infinite_feed:
     for v in real_variants:
         outWords.write(v)
         outWords.write("\n")
-
-
-outComments.close()
-outWords.close()
+    
+    outComments.close()
+    outWords.close()
 
 
 

@@ -117,7 +117,7 @@ def sj(*s):
 
 
 def greet(u, word):
-    return sj("Hey", user(u + ","), designate_w(word), "is a great word!")
+    return sj("Wow", user(u + ","), designate_w(word), "is a great word!")
 
 
 def bc():
