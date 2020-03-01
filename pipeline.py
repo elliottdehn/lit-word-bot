@@ -50,8 +50,6 @@ infinite_feed = filter(
     lambda w_c:
         len(w_c[0]) > 3 \
         and w_c[0] in all_vocab \
-        and w_c[0] not in done_words \
-        and w_c[1].id not in done_comments \
         and w_c[1].author != None \
         and str(w_c[1].author) != "lit_word_bot",
     obtain(500))
@@ -66,7 +64,7 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
 def delete_comments(minimum_score=1):
     # delete any downvoted comments of ours
     print("Checking deletes...")
-    for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=25):
+    for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=100):
         print("Checking comment, score is " + str(bot_comment.score))
         if (bot_comment.score < minimum_score):
             print("Deleting comment...")
@@ -76,7 +74,10 @@ def delete_comments(minimum_score=1):
 delete_comments()
 
 for w, comment in infinite_feed:
+    if (w in done_words or comment.id in done_comments):
+        continue
     done_words.add(w)
+
     if (w in word_frequencies and word_frequencies[w] > 60000):
         continue
 
@@ -127,9 +128,9 @@ for w, comment in infinite_feed:
 
     to_be_replied = reddit_rw.comment(comment.id)
     bot_reply = make_response(w, comment, best_entries)
+
     print(bot_reply)
 
-    forbade = False
     while True:
         try:
             # crude way to deal with comment rate limiting
@@ -141,12 +142,8 @@ for w, comment in infinite_feed:
             print("retrying...")
             time.sleep(30)
         except:
-            forbade = True
             print("Failed for some reason...")
             break
-    
-    if (forbade):
-        continue
 
     outComments = open("comments.txt", "a+")
     outWords = open("words.txt", "a+")
@@ -161,6 +158,8 @@ for w, comment in infinite_feed:
     
     outComments.close()
     outWords.close()
+
+
 
 
 
