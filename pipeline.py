@@ -14,9 +14,9 @@ def predictionary_variants(w):
     repre_wc = {pre + w for pre in pres if pre + w in all_vocab}
     desuf_wc = desuf_cloud(w, all_vocab, sufs)
     resuf_wc = {w + suf for suf in sufs if w + suf in all_vocab}
-    depresuf_wc = {depre_s(desuf_s(w, suf), pre) \
+    depresuf_wc = {depre_s(desuf, pre) \
         for pre in pres \
-        for suf in sufs if depre_s(desuf_s(w, suf), pre) in all_vocab}
+        for desuf in desuf_wc}
     represuf_wc = {
         pre + resuf
         for pre in pres
@@ -62,14 +62,16 @@ reddit_rw = praw.Reddit(client_id=secrets.reddit_client_id, client_secret=secret
                 password=secrets.reddit_password)
 
 def delete_comments(minimum_score=1):
-    # delete any downvoted comments of ours
-    print("Checking deletes...")
-    for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=100):
-        print("Checking comment, score is " + str(bot_comment.score))
-        if (bot_comment.score < minimum_score):
-            print("Deleting comment...")
-            bot_comment.delete()
-    threading.Timer(30, delete_comments).start()
+    try:
+        # delete any downvoted comments of ours
+        print("Checking deletes...")
+        for bot_comment in reddit_rw.redditor('lit_word_bot').comments.new(limit=100):
+            print("Checking comment, score is " + str(bot_comment.score))
+            if (bot_comment.score < minimum_score):
+                print("Deleting comment...")
+                bot_comment.delete()
+    finally:
+        threading.Timer(30, delete_comments).start()
 
 delete_comments()
 
