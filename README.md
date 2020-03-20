@@ -5,7 +5,7 @@ This is a bot which finds rare, colorful words in Reddit comments and defines th
 
 It relies on heuristics to make a good guess as to whether or not a word is worth defining. While it's not 100% perfect, readers seem to enjoy the comments. Any given comment can be easily deleted by readers if it's not desired.
 
-Status: The bot can run all day autonomously. Readers seem to by-and-large like the comments it makes. As of writing this, it's earned 1864 "upvotes" in the space of about 2 days.
+Status: The bot can run all day autonomously. Readers seem to by-and-large like the comments it makes. As of writing this, it's earned 1864 "upvotes" in the space of about 2 days. It earns an average of 35 Karma per comment, which beats my personal account's average of 25.
 
 
 If you'd like to mess around with it, you should:
