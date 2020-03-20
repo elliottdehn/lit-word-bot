@@ -1,7 +1,7 @@
-Warning: ugly code ahead. This project started as a way for me to learn Python but became quite a bit more substantial as I got into the problem. 
+Warning: ugly code ahead. This project started as a way for me to learn Python but became quite a bit more substantial as I got into the problem. In summary, it's a producer/consumer with some clever heuristics, all of which do a pretty good job collectively.
 
 # lit-word-bot
-This is a bot which finds rare, colorful words in Reddit comments and defines them for readers. You can see some of its comments here: https://www.reddit.com/user/lit_word_bot
+This is a bot which finds rare, colorful words in Reddit comments and defines them for readers. You can see some of its comments here: https://www.reddit.com/user/lit_word_bot/?sort=top
 
 It relies on heuristics to make a good guess as to whether or not a word is worth defining. While it's not 100% perfect, readers seem to enjoy the comments. Any given comment can be easily deleted by readers if it's not desired.
 
